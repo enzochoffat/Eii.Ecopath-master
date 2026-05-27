@@ -1,0 +1,362 @@
+﻿' ===============================================================================
+' This file is part of Ecopath with Ecosim (EwE)
+'
+' EwE is free software: you can redistribute it and/or modify it under the terms
+' of the GNU General Public License version 2 as published by the Free Software 
+' Foundation.
+'
+' EwE is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+' without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+' PURPOSE. See the GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License along with EwE.
+' If not, see <http://www.gnu.org/licenses/gpl-2.0.html>. 
+'
+' Copyright 1991- 
+'    Ecopath International Initiative, Barcelona, Spain
+' ===============================================================================
+'
+
+#Region " Imports "
+
+Option Strict On
+Imports System.IO
+Imports EwEPlugin
+Imports EwEUtils.Core
+Imports EwEUtils.Utilities
+Imports EwEUtils.Logging
+Imports Microsoft.Extensions.Logging
+Imports Debug = System.Diagnostics.Debug
+
+#End Region ' Imports
+
+''' ---------------------------------------------------------------------------
+''' <summary>
+''' Base implementation of <see cref="IEcospaceResultsWriter">IEcospaceResultsWriter</see>
+''' </summary>
+''' <remarks>Provides directory creation and file naming functionality for derived classes</remarks>
+''' ---------------------------------------------------------------------------
+Public MustInherit Class cEcospaceBaseResultsWriter
+    Implements IEcospaceResultsWriter
+
+    Private ReadOnly m_logger As ILogger = LoggingContext.CreateLogger(Of cEcospaceBaseResultsWriter)()
+
+#Region " Protected data "
+
+    ''' <summary>Zhe core.</summary>
+    Protected m_core As cCore = Nothing
+    ''' <summary>The complete path to the directory containing result files.</summary>
+    Protected m_OutputPath As String
+
+    Protected m_FirstStep As Integer = 1
+
+    Protected vars() As eVarNameFlags
+
+#End Region ' Protected data
+
+#Region " Constructor "
+
+    Public Sub New()
+        ' NOP
+    End Sub
+
+#End Region ' Constructor
+
+#Region " IEcospaceResultsWriter implementation "
+
+    ''' -----------------------------------------------------------------------
+    ''' <inheritdocs cref="IEcospaceResultsWriter.Init"/>
+    ''' -----------------------------------------------------------------------
+    Public Overridable Sub Init(theCore As Object) _
+        Implements IEcospaceResultsWriter.Init
+        Me.m_core = DirectCast(theCore, cCore)
+
+        ' First save timestep now picked up by writers at initialization
+        ' This value does not need to be set externally anymore
+        Me.m_FirstStep = Me.m_core.m_EcospaceData.FirstOutputTimeStep
+
+        If (Me.m_core.SelectedGroups Is Nothing) Or (Me.m_core.m_EcospaceData.SaveSelectedGroupsFleetsOnly = False) Then
+            Me.SelectedGroups = New Boolean(Me.m_core.nGroups) {}
+            Me.SetAllGroupsSelected()
+        Else
+            Me.SelectedGroups = Me.m_core.SelectedGroups
+        End If
+
+        If (Me.m_core.SelectedFleets Is Nothing) Or (Me.m_core.m_EcospaceData.SaveSelectedGroupsFleetsOnly = False) Then
+            Me.SelectedFleets = New Boolean(Me.m_core.nFleets) {}
+            Me.SetAllFleetsSelected()
+        Else
+            Me.SelectedFleets = Me.m_core.SelectedFleets
+        End If
+
+    End Sub
+
+    ''' -----------------------------------------------------------------------
+    ''' <inheritdocs cref="IEcospaceResultsWriter.StartWrite"/>
+    ''' -----------------------------------------------------------------------
+    Public MustOverride Sub StartWrite() _
+        Implements IEcospaceResultsWriter.StartWrite
+
+    ''' -----------------------------------------------------------------------
+    ''' <inheritdocs cref="IEcospaceResultsWriter.WriteResults"/>
+    ''' -----------------------------------------------------------------------
+    Public MustOverride Sub WriteResults(SpaceTimeStepResults As Object) _
+        Implements IEcospaceResultsWriter.WriteResults
+
+    ''' -----------------------------------------------------------------------
+    ''' <inheritdocs cref="IEcospaceResultsWriter.EndWrite"/>
+    ''' -----------------------------------------------------------------------
+    Public MustOverride Sub EndWrite() _
+        Implements IEcospaceResultsWriter.EndWrite
+
+    ''' -----------------------------------------------------------------------
+    ''' <inheritdocs cref="IEcospaceResultsWriter.DisplayName"/>
+    ''' -----------------------------------------------------------------------
+    Public MustOverride ReadOnly Property DisplayName() As String _
+        Implements IEcospaceResultsWriter.DisplayName
+
+    ''' -----------------------------------------------------------------------
+    ''' <inheritdocs cref="IEcospaceResultsWriter.Enabled"/>
+    ''' -----------------------------------------------------------------------  
+    Public Overridable Property Enabled As Boolean _
+        Implements IEcospaceResultsWriter.Enabled
+
+#End Region ' IEcospaceResultsWriter implementation
+
+#Region " Internals "
+
+    Protected MustOverride Function FileExtension() As String
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Create the time stamped ouput directory.
+    ''' </summary>
+    ''' <remarks>
+    ''' Directory will be created on the default output path in the format "Ecopace {datatype} {y-m-d h-m-s}
+    ''' i.e. "Ecospace ASC 11-07-11 16-40-50".</remarks>
+    ''' -----------------------------------------------------------------------
+    Protected Overridable Function CreateOutputDir() As Boolean
+
+        If Me.m_core.m_EcospaceData.UseCoreOutputDir Then
+            ' Write to "Ecospace output dir\ext\"
+            Dim iStr As String = Me.FileExtension()
+            iStr = cStringUtils.ReplaceAll(iStr, ".", "")
+            Me.m_OutputPath = Path.Combine(Me.m_core.DefaultOutputPath(eAutosaveTypes.Ecospace), iStr)
+        Else
+            'Use the output directory set by the user
+            If String.IsNullOrWhiteSpace(Me.EcospaceData.EcospaceMapOutputDir) Then
+                Me.m_OutputPath = Me.m_core.OutputPath
+            Else
+                Me.m_OutputPath = Path.Combine(Me.m_core.OutputPath, Me.EcospaceData.EcospaceMapOutputDir)
+            End If
+        End If
+
+        If (Not cFileUtils.IsDirectoryAvailable(Me.OutputDirectory, True)) Then
+            Debug.Assert(False, Me.ToString & ".CreateOutputDir() cannot create directory")
+            m_logger.LogError("Cannot create output directory: {0}", Me.OutputDirectory)
+            Return False
+        End If
+
+        Return True
+
+    End Function
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Get the full path name of the current output directory.
+    ''' </summary>
+    ''' <remarks>Initialized by <see cref="CreateOutputDir"/>.</remarks>
+    ''' -----------------------------------------------------------------------
+    Public Overridable ReadOnly Property OutputDirectory() As String Implements IEcospaceResultsWriter.OutputPath
+        Get
+            Return Me.m_OutputPath
+        End Get
+    End Property
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Convert the variable, group index, extention and model time step into a 
+    ''' valid group-based file name.
+    ''' </summary>
+    ''' <param name="varname">Variable, i.e. Biomass.</param>
+    ''' <param name="iGrp">Index of the group.</param>
+    ''' <param name="strExt">Extention of the file.</param>
+    ''' <param name="iModelTimeStep">Time step for the current file. If this is 
+    ''' not supplied then no time stamp will appear in the filename.</param>
+    ''' <returns>A file name, or an empty string if the specified data is somehow invalid.</returns>
+    ''' -----------------------------------------------------------------------
+    Public Overridable Function GetGroupFileName(varname As eVarNameFlags, iGrp As Integer, strExt As String,
+                                                 Optional iModelTimeStep As Integer = cCore.NULL_VALUE) As String
+
+        Dim fn As String = ""
+        Dim pm As cPluginManager = Me.m_core.PluginManager
+        Dim bSet As Boolean = False
+
+        If (pm IsNot Nothing) Then
+            'Allow plug-ins to change the file name. Eek.
+            bSet = pm.EcospaceResultsMapGroupFileName(fn, varname, iGrp, strExt, iModelTimeStep)
+        End If
+
+        If Not bSet Then
+            'Ok Use the default filename
+
+            Dim cin As cCoreEnumNamesIndex = cCoreEnumNamesIndex.GetInstance()
+            Dim strTimestep As String = ""
+            Dim grpName As String
+            If varname = eVarNameFlags.Concentration And iGrp = 0 Then
+                grpName = "Environment"
+            Else
+                grpName = Me.m_core.m_EcopathData.GroupName(iGrp)
+            End If
+
+
+            If (String.IsNullOrWhiteSpace(grpName)) Then Return ""
+
+                ' Is there a time step in the file name?
+                If (iModelTimeStep > 0) Then
+                    ' #Yes: include it in the file name
+                    strTimestep = cStringUtils.Localize("-{0:00000}", iModelTimeStep)
+                End If
+
+                fn = EwEUtils.Utilities.cFileUtils.ToValidFileName(cStringUtils.Localize("{0}-{1}{2}.{3}",
+                                                                        cin.GetVarName(varname), grpName, strTimestep, strExt.Replace(".", "")), False)
+            End If
+
+            Return System.IO.Path.Combine(Me.OutputDirectory, fn.Replace("..", "."))
+
+    End Function
+
+    ''' <summary>
+    ''' Select all groups for writing output
+    ''' </summary>
+    Protected Sub SetAllGroupsSelected()
+        For igrp As Integer = 0 To Me.EcopathData.NumGroups
+            Me.SelectedGroups(igrp) = True
+        Next igrp
+    End Sub
+
+    ''' <summary>
+    ''' Select all fished groups for writing output
+    ''' </summary>
+    Protected Sub SetCatchSelected()
+        For igrp As Integer = 1 To Me.EcopathData.NumGroups
+            Me.SelectedGroups(igrp) = False
+            For iflt As Integer = 1 To Me.EcopathData.NumFleet
+                If (Me.EcopathData.Discard(iflt, igrp) + Me.EcopathData.Landing(iflt, igrp)) > 0 Then
+                    Me.SelectedGroups(igrp) = True
+                End If
+            Next iflt
+        Next igrp
+    End Sub
+
+    ''' <summary>
+    ''' Select all fleets for writing output
+    ''' </summary>
+    Protected Sub SetAllFleetsSelected()
+        For iflt As Integer = 1 To Me.EcopathData.NumFleet
+            Me.SelectedFleets(iflt) = True
+        Next iflt
+    End Sub
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Convert the variable, fleet index, extention and model time step into a 
+    ''' valid fleet-based file name.
+    ''' </summary>
+    ''' <param name="varname">Variable, i.e. Biomass.</param>
+    ''' <param name="iFlt">Index of the fleet.</param>
+    ''' <param name="strExt">Extention of the file WITHOUT a period.</param>
+    ''' <param name="iModelTimeStep">Time step for the current file. If this is 
+    ''' not supplied then no time stamp will appear in the filename.</param>
+    ''' <returns>A file name.</returns>
+    ''' -----------------------------------------------------------------------
+    Public Overridable Function GetFleetFileName(varname As eVarNameFlags,
+                                                    iFlt As Integer,
+                                                    strExt As String,
+                                                    Optional iModelTimeStep As Integer = cCore.NULL_VALUE) As String
+
+
+        Dim Filename As String
+        If Me.m_core.PluginManager.EcospaceResultsMapFleetFileName(Filename, varname, iFlt, strExt, iModelTimeStep) Then
+            'File was set by the plugin
+        Else
+
+            Dim cin As cCoreEnumNamesIndex = cCoreEnumNamesIndex.GetInstance()
+            Dim fltName As String = Me.m_core.m_EcopathData.FleetName(iFlt)
+            Dim strTimestep As String = ""
+
+            ' Is there a time step in the file name?
+            If (iModelTimeStep > 0) Then
+                ' #Yes: include it in the file name
+                strTimestep = cStringUtils.Localize("-{0:00000}", iModelTimeStep)
+            End If
+
+            Filename = EwEUtils.Utilities.cFileUtils.ToValidFileName(cStringUtils.Localize("{0}-{1}{2}.{3}",
+                                                                     cin.GetVarName(varname), fltName, strTimestep, strExt.Replace(".", "")), False)
+        End If
+
+        Return System.IO.Path.Combine(Me.OutputDirectory, Filename.Replace("..", "."))
+
+    End Function
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Get the <see cref="cEcopathDataStructures">Ecopath data structure</see>.
+    ''' </summary>
+    ''' -----------------------------------------------------------------------
+    Protected ReadOnly Property EcopathData() As cEcopathDataStructures
+        Get
+            Return Me.m_core.m_EcopathData
+        End Get
+    End Property
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Get the <see cref="cEcospaceDataStructures">Ecospace data structures</see>.
+    ''' </summary>
+    ''' -----------------------------------------------------------------------
+    Protected ReadOnly Property EcospaceData() As cEcospaceDataStructures
+        Get
+            Return Me.m_core.m_EcospaceData
+        End Get
+    End Property
+
+    Protected Sub WriteRunInfo(strm As StreamWriter, Optional extra As Dictionary(Of String, String) = Nothing)
+        strm.Write(Me.m_core.DefaultFileHeader(eAutosaveTypes.Ecospace, extraFields:=extra))
+    End Sub
+
+    ''' <summary>
+    ''' Recalculate / rescale a value before it is written to the 
+    ''' output file.
+    ''' </summary>
+    ''' <param name="value"></param>
+    ''' <param name="SpaceTSData"></param>
+    ''' <param name="iIndex"></param>
+    ''' <param name="varname"></param>
+    ''' <returns></returns>
+    Protected Overridable Function ScaleValue(value As Double,
+                                              SpaceTSData As cEcospaceTimestep,
+                                              iIndex As Integer,
+                                              varname As eVarNameFlags) As Double
+        Return value
+    End Function
+
+    Public ReadOnly Property OutputPath As String
+        Get
+            Return Me.m_OutputPath
+        End Get
+    End Property
+
+    Public ReadOnly Property FirstOutputTimeStep As Integer
+        Get
+            Return Me.m_FirstStep
+        End Get
+    End Property
+
+    Public Property SelectedGroups As Boolean()
+
+    Public Property SelectedFleets As Boolean()
+
+#End Region ' Internals
+
+End Class

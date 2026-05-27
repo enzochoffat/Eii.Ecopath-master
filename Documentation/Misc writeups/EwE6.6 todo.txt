@@ -1,0 +1,109 @@
+== NEEDS FIXING FOR EWE 6.6 ==
+  
+== FIXES THAT NEED TESTING ==
+# On some monitors Tools > Options does not stretch all the way to the right
+# Flow diagram does not display units when ColorUsage is set to Flow
+# Color gradients do not show proper fleet and group colors, but only standard EwE gradient
+# Rewrite map logic! Double-buffering can cause out of memory errors. Perhaps simple fix will do? If not, manage zooming in code (not in WinForms)
+# Ecospace map cursor does not change size when changing zoom level. Maintain cursor in map instead of in layer editors?
+# Opening old model: show which old EwE version last used the model in upgrade message
+# EcoInd histogram shows no variaton where MCMC does: Ecopath does not calc stats when in Sensitivity run
+# Added AutoRun system (just like AutoSave) where plug-ins can register and be controlled to run with Path, Sim, and Space
+# EwE first launch (or post-upgrade) shows "thank you" page in the start screen
+# Change shape - trapezoid no longer loses XAxisMin
+# Change shape - trapezoid now robust to users changing function parameters in any order
+# Monte Carlo diet perturbations no longer lose existing diet interactions (e.g, no longer samples diets to 0)
+# Monte Carlo now shows start biomass (e.g., 1) in plot
+# Change shape "show extra data" option only applies to forcing functions
+# Ecosim values dialog does not show Xaxis min and max
+# Groups now delete again with taxa and Ecospace scenarios
+# EwE main interface can be resized on all borders under Windows 10
+# EcoIND fixed units
+# EcoIND can now be stopped on main screen
+# EcoIND shows elapsed time for iteration
+# EcoIND output path can be customized and reset
+# Ecospace save map image does not orient image well after map logic rewrite
+# EcoIND does not correctly compute "catch of mammals, seabirds and reptiles" indicator
+
+== BUGS ==
+! Sometimes biomass plot stay empty when re-running MC? 
+! Edit MultiStanza: unable to fix start age of 1 group if two groups start at 0. Can be corrected in Define Groups though
+! Cannot reorganize MPAs well in UI
+! Applying fleet effort to pred/prey interactions does not seem to work
+? ENA: After clicking around a lot, MTI table (and others) stop appearing. The wait cursor is spinning, and the status bar is saying "executing plug-in".
+  Read only models: do not allow users to create/delete items
+  Connect ext data -> define ext data -> connection list does not refresh
+  External data grid add incremental updates, do not total refresh 
+  Sort out confusing terminology in Space: fn responses, env responses, habitat foraging responses
+  Ecowriter: remark column size to width, not size to content
+  ImportLayer: use ApplicationStatus to notify user what's happening
+  MC: index out of range in Ecosim for larger models. Could be related to QB resample bug that was just fixed
+  Fleet-based map drawers in RunEcospace do not draw MPAs
+  Start page empty for most machines: IE compatibility flag not set in installer?
+  Define multi-stanza: vbK = -9999 validation failure warning popup. Provide default instead!
+  Ecosim FD sometimes does not animate on Macs? Try running sim, opening, closing diagram, in various ways. Perhaps timer is not properly released? Slider works
+  Fit to time series does not open up on Macs?
+  Fit to time series anomaly search panel does not extent all the way to the right on some models
+  Import TS type 2 (environmental forcing, which translates to a FF): should be able to leave pool code field empty
+  Import TS type 2 should overwrite any function with the same name!
+  Import TS type 2 should retain last value for NULL data points (instead of creating 0 forcing points)
+  EcoInd histogram items bars sometimes drawn like an X when axis uses very small ticks
+  Monte Carlo: Output panel alignment can be pretty weird (computed values misaligned)
+! Apply foraging responses: X-axis on application plot does not properly show X axis!!!
+? Apply foraging responses - new UI is (too) slow when applying. Perhaps something is wrong?
+  Run Ecospace shows excluded cells in red, regardless of the customized colour
+  Add Sequence to Sim, Space, and tracer scenario DB tables to ensure that scenarios are always loaded up in the same order. This could also allow users to reorganize scenarios
+  Ecospace save map image does not use Ecopath no. decimal digits for legend scales 
+  Tools dialog config pages must be able to report if they are enabled or disabled based on EwE run state. UI should incorporate this
+== FEATURES ==
+  Warning if there are no water cells on pre-run
+  Computed cap 0 when no migration targets set :-> assume whole map as migration target? message?
+  MPA dyn: add 'all year', 'all fleets' columns to CSV file (or 'm*', 'fleet*') -> Colette?
+  Transect extraction: add fleet and group plots
+  Transect extraction: add fleet effort and discards, and show which fleets are banned from fishing through MPAs
+  Transect extraction: add plot that shows where there are habitat limitations to fishing
+  Output MC results per group variable for all trials
+  Consider hiding Catchability grid from EwE 6.6 Beta
+  Allow remarks on forcing & mediation functions
+  Allow remarks on ff / med / capacity assignments
+  Allow copy/paste of 'weird' grids: apply ff, med, etc
+  Allow plug-in points on toolstrips (by identifying the class name of the grid / form that has a main toolbar, like quick editor)
+  MC best fitting trial summary should show diet, landings, discards data
+  Add multi-item delete/keep toggle in 'Define' dialogs (group, fleets, habitats, mpas, env driver layers, importance layers)
+  Group info: use cUnit in headers, remove from label resources
+  Add Ecospace result writers to EwE core (with secundary access through Ecospace parameters)
+  Add Monte Carlo result writers to file management UI
+  Monte Carlo: make all entries on settings page permanent (in app settings)
+  StepWise fitting: store and retrieve fitted params (vuls, anomaly shape)
+  Ecosampler: warn if no autosaving is selected for loaded components (path, sim, space, ..)
+  Database performance boost: when in batch mode (=transaction), do not get and release writers, but cache them instead! 
+  - Getting a writer obtains the entire remote table. This is incredibly costly re. performance.
+  Merge shape "Values" and "Change shape" interfaces
+  'Manage items:
+  - Merge all 'manage items' interfaces using a single, shared, inheritable engine
+  - Items to be deleted should shown in grids with crossed-out, red text
+  Ecospace time series are requested, where each time series remembers which external datasets are applied to which layers
+ 
+== NOT UNASSESSED ==
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+JB assessed on a couple of models and it looks like it's working
+  Hatchery stocking ff cannot be removed from stanza group -> Works OK in Georgia Strait. Joe?
+	 - Unable to reproduce
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  Multi-sim does not seem to validate function names when ran?!  
+  Old MC: was there a link between output saving and the selected group in MC? Check EwE 6.5 code
+  Effort dynamics flag overrides effort/F sketching by using economic evaluation only
+ 
+@ Joe: Ecopath params: Remove "Ecospace coupled to external model" checkbox?
+@ Joe: Hyperbolic function parameter names are still at old defaults, is this correct?
+	Yep there was an issue with the order but they are correct, what they mean and how to use it is another story
+@ Joe: Bring Ecosim Nutrient loading + Production forcing per PP group to Ecospace: 
+   - Add Nutrient loading layer
+   - Add RelPP layer for each PP group to individually drive production
+
+EwE wishes ICES meeting
+=======================
+- Document with all equations, and how EwE mechanisms influence equations
+- Management UI with big knobs to turn
+- Macro recorder for loading & running
+- Bend plug-in computed indicators back into EwE

@@ -1,0 +1,785 @@
+' ===============================================================================
+' This file is part of Ecopath with Ecosim (EwE)
+'
+' EwE is free software: you can redistribute it and/or modify it under the terms
+' of the GNU General Public License version 2 as published by the Free Software 
+' Foundation.
+'
+' EwE is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+' without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+' PURPOSE. See the GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License along with EwE.
+' If not, see <http://www.gnu.org/licenses/gpl-2.0.html>. 
+'
+' Copyright 1991- 
+'    Ecopath International Initiative, Barcelona, Spain
+' ===============================================================================
+'
+
+Imports ScientificInterfaceShared.Forms
+
+Namespace Ecospace
+
+    Partial Class frmEcospaceParameters
+        Inherits frmEwE
+
+        'Form overrides dispose to clean up the component list.
+        <System.Diagnostics.DebuggerNonUserCode()>
+        Protected Overrides Sub Dispose(disposing As Boolean)
+            Try
+                If disposing AndAlso components IsNot Nothing Then
+                    components.Dispose()
+                End If
+            Finally
+                MyBase.Dispose(disposing)
+            End Try
+        End Sub
+
+        'Required by the Windows Form Designer
+        Private components As System.ComponentModel.IContainer
+
+        'NOTE: The following procedure is required by the Windows Form Designer
+        'It can be modified using the Windows Form Designer.  
+        'Do not modify it using the code editor.
+        <System.Diagnostics.DebuggerStepThrough()>
+        Private Sub InitializeComponent()
+            Dim m_gbModel As System.Windows.Forms.GroupBox
+            Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(frmEcospaceParameters))
+            Me.m_Couplage = New System.Windows.Forms.RadioButton()
+            Me.m_rbNewStanzaModel = New System.Windows.Forms.RadioButton()
+            Me.m_rbIBM = New System.Windows.Forms.RadioButton()
+            Me.m_rbOldSchool = New System.Windows.Forms.RadioButton()
+            Me.m_rbBaseBiomass = New System.Windows.Forms.RadioButton()
+            Me.m_rbAdjustedBiomass = New System.Windows.Forms.RadioButton()
+            Me.m_hdrInitialization = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
+            Me.m_hdrModel = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
+            Me.m_tlpModelTop = New System.Windows.Forms.TableLayoutPanel()
+            Me.m_gbMigration = New System.Windows.Forms.GroupBox()
+            Me.m_rbEcopathEffort = New System.Windows.Forms.RadioButton()
+            Me.m_rbPredictEffort = New System.Windows.Forms.RadioButton()
+            Me.m_gbIMB = New System.Windows.Forms.GroupBox()
+            Me.m_cbMovePackets = New System.Windows.Forms.CheckBox()
+            Me.m_tbNumPackets = New System.Windows.Forms.TextBox()
+            Me.m_lbPacketsMultiplier = New System.Windows.Forms.Label()
+            Me.m_gbCapacity = New System.Windows.Forms.GroupBox()
+            Me.m_lblMinCap = New System.Windows.Forms.Label()
+            Me.m_tbxMinCap = New System.Windows.Forms.TextBox()
+            Me.m_cbCalcHabCapGrad = New System.Windows.Forms.CheckBox()
+            Me.m_lbNumThreads = New System.Windows.Forms.Label()
+            Me.m_nudNumThreads = New ScientificInterfaceShared.Controls.cEwENumericUpDown()
+            Me.m_nudMaxIterations = New ScientificInterfaceShared.Controls.cEwENumericUpDown()
+            Me.m_lbTotalTime = New System.Windows.Forms.Label()
+            Me.m_lblNumTimstepsPerYear = New System.Windows.Forms.Label()
+            Me.m_lbNumIterations = New System.Windows.Forms.Label()
+            Me.m_lbTolerance = New System.Windows.Forms.Label()
+            Me.m_lbSOR = New System.Windows.Forms.Label()
+            Me.m_tbTotalTime = New System.Windows.Forms.TextBox()
+            Me.m_tbNumTimeStepsPerYear = New System.Windows.Forms.TextBox()
+            Me.m_tbTolerance = New System.Windows.Forms.TextBox()
+            Me.m_tbSOR = New System.Windows.Forms.TextBox()
+            Me.m_gbRunTime = New System.Windows.Forms.GroupBox()
+            Me.m_cbContaminantTracing = New System.Windows.Forms.CheckBox()
+            Me.m_cbUseExact = New System.Windows.Forms.CheckBox()
+            Me.m_cbAnnualOutput = New System.Windows.Forms.CheckBox()
+            Me.m_clbAutosave = New System.Windows.Forms.CheckedListBox()
+            Me.Label2 = New System.Windows.Forms.Label()
+            Me.m_nudFirstTimeStep = New ScientificInterfaceShared.Controls.cEwENumericUpDown()
+            Me.m_tbContact = New System.Windows.Forms.TextBox()
+            Me.m_tbAuthor = New System.Windows.Forms.TextBox()
+            Me.m_lbContact = New System.Windows.Forms.Label()
+            Me.m_lbAuthor = New System.Windows.Forms.Label()
+            Me.m_tbName = New System.Windows.Forms.TextBox()
+            Me.m_tbDescription = New System.Windows.Forms.TextBox()
+            Me.m_lblDescription = New System.Windows.Forms.Label()
+            Me.m_lbScenarioName = New System.Windows.Forms.Label()
+            Me.m_hdrScenario = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
+            Me.m_plBiomass = New System.Windows.Forms.Panel()
+            Me.m_tlpStuff = New System.Windows.Forms.TableLayoutPanel()
+            Me.m_plScenario = New System.Windows.Forms.Panel()
+            Me.m_plModel = New System.Windows.Forms.Panel()
+            Me.m_tlpRunTime = New System.Windows.Forms.TableLayoutPanel()
+            Me.m_gbAutoSave = New System.Windows.Forms.GroupBox()
+            Me.m_cbAutosaveVisibleOnly = New System.Windows.Forms.CheckBox()
+            Me.m_plTimeSeries = New System.Windows.Forms.Panel()
+            Me.m_lblOutputResidualsFile = New System.Windows.Forms.Label()
+            Me.m_tbxlOutputResidualsFile = New System.Windows.Forms.TextBox()
+            Me.m_tbxXYTimeSeriesFile = New System.Windows.Forms.TextBox()
+            Me.m_lblXY = New System.Windows.Forms.Label()
+            Me.m_btnTimeSeriesOutputFile = New System.Windows.Forms.Button()
+            Me.m_btnLoadXYTimeSeries = New System.Windows.Forms.Button()
+            Me.m_cbUseEcosimDiscardForcing = New System.Windows.Forms.CheckBox()
+            Me.m_cbUseEcosimBiomassForcing = New System.Windows.Forms.CheckBox()
+            Me.m_hdrTimeSeries = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
+            Me.m_plEffortDistr = New System.Windows.Forms.Panel()
+            Me.m_tbPredEffortRelax = New System.Windows.Forms.TextBox()
+            Me.m_lbEffortRelax = New System.Windows.Forms.Label()
+            Me.m_tbFirstPenaltyMonth = New System.Windows.Forms.TextBox()
+            Me.m_lbFirstMonthPen = New System.Windows.Forms.Label()
+            Me.m_tbPenPow = New System.Windows.Forms.TextBox()
+            Me.m_lbPenPow = New System.Windows.Forms.Label()
+            Me.m_tbEffortAdjustWeight = New System.Windows.Forms.TextBox()
+            Me.m_lbAdjustEffort = New System.Windows.Forms.Label()
+            Me.m_cbUsePenalty = New System.Windows.Forms.CheckBox()
+            Me.m_hdrSpatialPenalty = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
+            m_gbModel = New System.Windows.Forms.GroupBox()
+            m_gbModel.SuspendLayout()
+            Me.m_tlpModelTop.SuspendLayout()
+            Me.m_gbMigration.SuspendLayout()
+            Me.m_gbIMB.SuspendLayout()
+            Me.m_gbCapacity.SuspendLayout()
+            CType(Me.m_nudNumThreads, System.ComponentModel.ISupportInitialize).BeginInit()
+            CType(Me.m_nudMaxIterations, System.ComponentModel.ISupportInitialize).BeginInit()
+            Me.m_gbRunTime.SuspendLayout()
+            CType(Me.m_nudFirstTimeStep, System.ComponentModel.ISupportInitialize).BeginInit()
+            Me.m_plBiomass.SuspendLayout()
+            Me.m_tlpStuff.SuspendLayout()
+            Me.m_plScenario.SuspendLayout()
+            Me.m_plModel.SuspendLayout()
+            Me.m_tlpRunTime.SuspendLayout()
+            Me.m_gbAutoSave.SuspendLayout()
+            Me.m_plTimeSeries.SuspendLayout()
+            Me.m_plEffortDistr.SuspendLayout()
+            Me.SuspendLayout()
+            '
+            'm_gbModel
+            '
+            m_gbModel.Controls.Add(Me.m_rbNewStanzaModel)
+            m_gbModel.Controls.Add(Me.m_rbIBM)
+            m_gbModel.Controls.Add(Me.m_rbOldSchool)
+            m_gbModel.Controls.Add(CType(Me.m_Couplage, Control))
+            resources.ApplyResources(m_gbModel, "m_gbModel")
+            m_gbModel.Name = "m_gbModel"
+            m_gbModel.TabStop = False
+            '
+            'm_rbNewStanzaModel
+            '
+            resources.ApplyResources(Me.m_rbNewStanzaModel, "m_rbNewStanzaModel")
+            Me.m_rbNewStanzaModel.Checked = True
+            Me.m_rbNewStanzaModel.Name = "m_rbNewStanzaModel"
+            Me.m_rbNewStanzaModel.TabStop = True
+            Me.m_rbNewStanzaModel.UseVisualStyleBackColor = True
+            '
+            'm_Couplage
+            '
+            resources.ApplyResources(Me.m_Couplage, "m_Couplage")
+            'Me.m_Couplage.Checked = True
+            Me.m_Couplage.Name = "m_Couplage"
+            Me.m_Couplage.UseVisualStyleBackColor = True
+            '
+            'm_rbIBM
+            '
+            resources.ApplyResources(Me.m_rbIBM, "m_rbIBM")
+            Me.m_rbIBM.Name = "m_rbIBM"
+            Me.m_rbIBM.UseVisualStyleBackColor = True
+            '
+            'm_rbOldSchool
+            '
+            resources.ApplyResources(Me.m_rbOldSchool, "m_rbOldSchool")
+            Me.m_rbOldSchool.Name = "m_rbOldSchool"
+            Me.m_rbOldSchool.UseVisualStyleBackColor = True
+            '
+            'm_rbBaseBiomass
+            '
+            resources.ApplyResources(Me.m_rbBaseBiomass, "m_rbBaseBiomass")
+            Me.m_rbBaseBiomass.Checked = True
+            Me.m_rbBaseBiomass.Name = "m_rbBaseBiomass"
+            Me.m_rbBaseBiomass.TabStop = True
+            Me.m_rbBaseBiomass.UseVisualStyleBackColor = True
+            '
+            'm_rbAdjustedBiomass
+            '
+            resources.ApplyResources(Me.m_rbAdjustedBiomass, "m_rbAdjustedBiomass")
+            Me.m_rbAdjustedBiomass.Name = "m_rbAdjustedBiomass"
+            Me.m_rbAdjustedBiomass.UseVisualStyleBackColor = True
+            '
+            'm_hdrInitialization
+            '
+            resources.ApplyResources(Me.m_hdrInitialization, "m_hdrInitialization")
+            Me.m_hdrInitialization.CanCollapseParent = True
+            Me.m_hdrInitialization.CollapsedParentHeight = 0
+            Me.m_hdrInitialization.IsCollapsed = False
+            Me.m_hdrInitialization.Name = "m_hdrInitialization"
+            '
+            'm_hdrModel
+            '
+            resources.ApplyResources(Me.m_hdrModel, "m_hdrModel")
+            Me.m_hdrModel.CanCollapseParent = True
+            Me.m_hdrModel.CollapsedParentHeight = 0
+            Me.m_hdrModel.IsCollapsed = False
+            Me.m_hdrModel.Name = "m_hdrModel"
+            '
+            'm_tlpModelTop
+            '
+            resources.ApplyResources(Me.m_tlpModelTop, "m_tlpModelTop")
+            Me.m_tlpModelTop.Controls.Add(Me.m_gbMigration, 2, 0)
+            Me.m_tlpModelTop.Controls.Add(m_gbModel, 0, 0)
+            Me.m_tlpModelTop.Controls.Add(Me.m_gbIMB, 1, 0)
+            Me.m_tlpModelTop.Controls.Add(Me.m_gbCapacity, 3, 0)
+            Me.m_tlpModelTop.Name = "m_tlpModelTop"
+            '
+            'm_gbMigration
+            '
+            Me.m_gbMigration.Controls.Add(Me.m_rbEcopathEffort)
+            Me.m_gbMigration.Controls.Add(Me.m_rbPredictEffort)
+            resources.ApplyResources(Me.m_gbMigration, "m_gbMigration")
+            Me.m_gbMigration.Name = "m_gbMigration"
+            Me.m_gbMigration.TabStop = False
+            '
+            'm_rbEcopathEffort
+            '
+            resources.ApplyResources(Me.m_rbEcopathEffort, "m_rbEcopathEffort")
+            Me.m_rbEcopathEffort.Name = "m_rbEcopathEffort"
+            Me.m_rbEcopathEffort.TabStop = True
+            Me.m_rbEcopathEffort.UseVisualStyleBackColor = True
+            '
+            'm_rbPredictEffort
+            '
+            resources.ApplyResources(Me.m_rbPredictEffort, "m_rbPredictEffort")
+            Me.m_rbPredictEffort.Name = "m_rbPredictEffort"
+            Me.m_rbPredictEffort.TabStop = True
+            Me.m_rbPredictEffort.UseVisualStyleBackColor = True
+            '
+            'm_gbIMB
+            '
+            Me.m_gbIMB.Controls.Add(Me.m_cbMovePackets)
+            Me.m_gbIMB.Controls.Add(Me.m_tbNumPackets)
+            Me.m_gbIMB.Controls.Add(Me.m_lbPacketsMultiplier)
+            resources.ApplyResources(Me.m_gbIMB, "m_gbIMB")
+            Me.m_gbIMB.Name = "m_gbIMB"
+            Me.m_gbIMB.TabStop = False
+            '
+            'm_cbMovePackets
+            '
+            resources.ApplyResources(Me.m_cbMovePackets, "m_cbMovePackets")
+            Me.m_cbMovePackets.Name = "m_cbMovePackets"
+            Me.m_cbMovePackets.UseVisualStyleBackColor = True
+            '
+            'm_tbNumPackets
+            '
+            resources.ApplyResources(Me.m_tbNumPackets, "m_tbNumPackets")
+            Me.m_tbNumPackets.Name = "m_tbNumPackets"
+            '
+            'm_lbPacketsMultiplier
+            '
+            resources.ApplyResources(Me.m_lbPacketsMultiplier, "m_lbPacketsMultiplier")
+            Me.m_lbPacketsMultiplier.Name = "m_lbPacketsMultiplier"
+            '
+            'm_gbCapacity
+            '
+            Me.m_gbCapacity.Controls.Add(Me.m_lblMinCap)
+            Me.m_gbCapacity.Controls.Add(Me.m_tbxMinCap)
+            Me.m_gbCapacity.Controls.Add(Me.m_cbCalcHabCapGrad)
+            resources.ApplyResources(Me.m_gbCapacity, "m_gbCapacity")
+            Me.m_gbCapacity.Name = "m_gbCapacity"
+            Me.m_gbCapacity.TabStop = False
+            '
+            'm_lblMinCap
+            '
+            resources.ApplyResources(Me.m_lblMinCap, "m_lblMinCap")
+            Me.m_lblMinCap.Name = "m_lblMinCap"
+            '
+            'm_tbxMinCap
+            '
+            resources.ApplyResources(Me.m_tbxMinCap, "m_tbxMinCap")
+            Me.m_tbxMinCap.Name = "m_tbxMinCap"
+            '
+            'm_cbCalcHabCapGrad
+            '
+            resources.ApplyResources(Me.m_cbCalcHabCapGrad, "m_cbCalcHabCapGrad")
+            Me.m_cbCalcHabCapGrad.Name = "m_cbCalcHabCapGrad"
+            Me.m_cbCalcHabCapGrad.UseVisualStyleBackColor = True
+            '
+            'm_lbNumThreads
+            '
+            resources.ApplyResources(Me.m_lbNumThreads, "m_lbNumThreads")
+            Me.m_lbNumThreads.Name = "m_lbNumThreads"
+            '
+            'm_nudNumThreads
+            '
+            Me.m_nudNumThreads.InterceptMouseWheel = ScientificInterfaceShared.Controls.cEwENumericUpDown.eInterceptMouseWheelType.WhenMouseOver
+            resources.ApplyResources(Me.m_nudNumThreads, "m_nudNumThreads")
+            Me.m_nudNumThreads.Maximum = New Decimal(New Integer() {1000, 0, 0, 0})
+            Me.m_nudNumThreads.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
+            Me.m_nudNumThreads.Name = "m_nudNumThreads"
+            Me.m_nudNumThreads.Value = New Decimal(New Integer() {1, 0, 0, 0})
+            '
+            'm_nudMaxIterations
+            '
+            Me.m_nudMaxIterations.InterceptMouseWheel = ScientificInterfaceShared.Controls.cEwENumericUpDown.eInterceptMouseWheelType.WhenMouseOver
+            resources.ApplyResources(Me.m_nudMaxIterations, "m_nudMaxIterations")
+            Me.m_nudMaxIterations.Maximum = New Decimal(New Integer() {10000, 0, 0, 0})
+            Me.m_nudMaxIterations.Name = "m_nudMaxIterations"
+            Me.m_nudMaxIterations.Value = New Decimal(New Integer() {1, 0, 0, 0})
+            '
+            'm_lbTotalTime
+            '
+            resources.ApplyResources(Me.m_lbTotalTime, "m_lbTotalTime")
+            Me.m_lbTotalTime.Name = "m_lbTotalTime"
+            '
+            'm_lblNumTimstepsPerYear
+            '
+            resources.ApplyResources(Me.m_lblNumTimstepsPerYear, "m_lblNumTimstepsPerYear")
+            Me.m_lblNumTimstepsPerYear.Name = "m_lblNumTimstepsPerYear"
+            '
+            'm_lbNumIterations
+            '
+            resources.ApplyResources(Me.m_lbNumIterations, "m_lbNumIterations")
+            Me.m_lbNumIterations.Name = "m_lbNumIterations"
+            '
+            'm_lbTolerance
+            '
+            resources.ApplyResources(Me.m_lbTolerance, "m_lbTolerance")
+            Me.m_lbTolerance.Name = "m_lbTolerance"
+            '
+            'm_lbSOR
+            '
+            resources.ApplyResources(Me.m_lbSOR, "m_lbSOR")
+            Me.m_lbSOR.Name = "m_lbSOR"
+            '
+            'm_tbTotalTime
+            '
+            resources.ApplyResources(Me.m_tbTotalTime, "m_tbTotalTime")
+            Me.m_tbTotalTime.Name = "m_tbTotalTime"
+            '
+            'm_tbNumTimeStepsPerYear
+            '
+            resources.ApplyResources(Me.m_tbNumTimeStepsPerYear, "m_tbNumTimeStepsPerYear")
+            Me.m_tbNumTimeStepsPerYear.Name = "m_tbNumTimeStepsPerYear"
+            '
+            'm_tbTolerance
+            '
+            resources.ApplyResources(Me.m_tbTolerance, "m_tbTolerance")
+            Me.m_tbTolerance.Name = "m_tbTolerance"
+            '
+            'm_tbSOR
+            '
+            resources.ApplyResources(Me.m_tbSOR, "m_tbSOR")
+            Me.m_tbSOR.Name = "m_tbSOR"
+            '
+            'm_gbRunTime
+            '
+            Me.m_gbRunTime.Controls.Add(Me.m_lbNumThreads)
+            Me.m_gbRunTime.Controls.Add(Me.m_nudNumThreads)
+            Me.m_gbRunTime.Controls.Add(Me.m_tbSOR)
+            Me.m_gbRunTime.Controls.Add(Me.m_tbTolerance)
+            Me.m_gbRunTime.Controls.Add(Me.m_tbNumTimeStepsPerYear)
+            Me.m_gbRunTime.Controls.Add(Me.m_tbTotalTime)
+            Me.m_gbRunTime.Controls.Add(Me.m_cbContaminantTracing)
+            Me.m_gbRunTime.Controls.Add(Me.m_cbUseExact)
+            Me.m_gbRunTime.Controls.Add(Me.m_lbSOR)
+            Me.m_gbRunTime.Controls.Add(Me.m_lbTolerance)
+            Me.m_gbRunTime.Controls.Add(Me.m_lbNumIterations)
+            Me.m_gbRunTime.Controls.Add(Me.m_lblNumTimstepsPerYear)
+            Me.m_gbRunTime.Controls.Add(Me.m_lbTotalTime)
+            Me.m_gbRunTime.Controls.Add(Me.m_nudMaxIterations)
+            resources.ApplyResources(Me.m_gbRunTime, "m_gbRunTime")
+            Me.m_gbRunTime.Name = "m_gbRunTime"
+            Me.m_gbRunTime.TabStop = False
+            '
+            'm_cbContaminantTracing
+            '
+            resources.ApplyResources(Me.m_cbContaminantTracing, "m_cbContaminantTracing")
+            Me.m_cbContaminantTracing.Name = "m_cbContaminantTracing"
+            Me.m_cbContaminantTracing.UseVisualStyleBackColor = True
+            '
+            'm_cbUseExact
+            '
+            resources.ApplyResources(Me.m_cbUseExact, "m_cbUseExact")
+            Me.m_cbUseExact.Name = "m_cbUseExact"
+            Me.m_cbUseExact.UseVisualStyleBackColor = True
+            '
+            'm_cbAnnualOutput
+            '
+            resources.ApplyResources(Me.m_cbAnnualOutput, "m_cbAnnualOutput")
+            Me.m_cbAnnualOutput.Checked = True
+            Me.m_cbAnnualOutput.CheckState = System.Windows.Forms.CheckState.Checked
+            Me.m_cbAnnualOutput.Name = "m_cbAnnualOutput"
+            Me.m_cbAnnualOutput.UseVisualStyleBackColor = True
+            '
+            'm_clbAutosave
+            '
+            resources.ApplyResources(Me.m_clbAutosave, "m_clbAutosave")
+            Me.m_clbAutosave.CheckOnClick = True
+            Me.m_clbAutosave.FormattingEnabled = True
+            Me.m_clbAutosave.Name = "m_clbAutosave"
+            Me.m_clbAutosave.Sorted = True
+            '
+            'Label2
+            '
+            resources.ApplyResources(Me.Label2, "Label2")
+            Me.Label2.Name = "Label2"
+            '
+            'm_nudFirstTimeStep
+            '
+            Me.m_nudFirstTimeStep.InterceptMouseWheel = ScientificInterfaceShared.Controls.cEwENumericUpDown.eInterceptMouseWheelType.WhenMouseOver
+            resources.ApplyResources(Me.m_nudFirstTimeStep, "m_nudFirstTimeStep")
+            Me.m_nudFirstTimeStep.Maximum = New Decimal(New Integer() {10000, 0, 0, 0})
+            Me.m_nudFirstTimeStep.Name = "m_nudFirstTimeStep"
+            Me.m_nudFirstTimeStep.Value = New Decimal(New Integer() {1, 0, 0, 0})
+            '
+            'm_tbContact
+            '
+            resources.ApplyResources(Me.m_tbContact, "m_tbContact")
+            Me.m_tbContact.Name = "m_tbContact"
+            '
+            'm_tbAuthor
+            '
+            resources.ApplyResources(Me.m_tbAuthor, "m_tbAuthor")
+            Me.m_tbAuthor.Name = "m_tbAuthor"
+            '
+            'm_lbContact
+            '
+            resources.ApplyResources(Me.m_lbContact, "m_lbContact")
+            Me.m_lbContact.Name = "m_lbContact"
+            '
+            'm_lbAuthor
+            '
+            resources.ApplyResources(Me.m_lbAuthor, "m_lbAuthor")
+            Me.m_lbAuthor.Name = "m_lbAuthor"
+            '
+            'm_tbName
+            '
+            resources.ApplyResources(Me.m_tbName, "m_tbName")
+            Me.m_tbName.Name = "m_tbName"
+            '
+            'm_tbDescription
+            '
+            resources.ApplyResources(Me.m_tbDescription, "m_tbDescription")
+            Me.m_tbDescription.Name = "m_tbDescription"
+            '
+            'm_lblDescription
+            '
+            resources.ApplyResources(Me.m_lblDescription, "m_lblDescription")
+            Me.m_lblDescription.Name = "m_lblDescription"
+            '
+            'm_lbScenarioName
+            '
+            resources.ApplyResources(Me.m_lbScenarioName, "m_lbScenarioName")
+            Me.m_lbScenarioName.Name = "m_lbScenarioName"
+            '
+            'm_hdrScenario
+            '
+            resources.ApplyResources(Me.m_hdrScenario, "m_hdrScenario")
+            Me.m_hdrScenario.CanCollapseParent = True
+            Me.m_hdrScenario.CollapsedParentHeight = 106
+            Me.m_hdrScenario.IsCollapsed = False
+            Me.m_hdrScenario.Name = "m_hdrScenario"
+            '
+            'm_plBiomass
+            '
+            resources.ApplyResources(Me.m_plBiomass, "m_plBiomass")
+            Me.m_plBiomass.Controls.Add(Me.m_rbBaseBiomass)
+            Me.m_plBiomass.Controls.Add(Me.m_rbAdjustedBiomass)
+            Me.m_plBiomass.Controls.Add(Me.m_hdrInitialization)
+            Me.m_plBiomass.Name = "m_plBiomass"
+            '
+            'm_tlpStuff
+            '
+            resources.ApplyResources(Me.m_tlpStuff, "m_tlpStuff")
+            Me.m_tlpStuff.Controls.Add(Me.m_plScenario, 0, 0)
+            Me.m_tlpStuff.Controls.Add(Me.m_plBiomass, 0, 1)
+            Me.m_tlpStuff.Controls.Add(Me.m_plModel, 0, 2)
+            Me.m_tlpStuff.Controls.Add(Me.m_plTimeSeries, 0, 3)
+            Me.m_tlpStuff.Controls.Add(Me.m_plEffortDistr, 0, 4)
+            Me.m_tlpStuff.Name = "m_tlpStuff"
+            '
+            'm_plScenario
+            '
+            Me.m_plScenario.Controls.Add(Me.m_hdrScenario)
+            Me.m_plScenario.Controls.Add(Me.m_tbContact)
+            Me.m_plScenario.Controls.Add(Me.m_lbScenarioName)
+            Me.m_plScenario.Controls.Add(Me.m_tbAuthor)
+            Me.m_plScenario.Controls.Add(Me.m_lblDescription)
+            Me.m_plScenario.Controls.Add(Me.m_lbContact)
+            Me.m_plScenario.Controls.Add(Me.m_tbDescription)
+            Me.m_plScenario.Controls.Add(Me.m_tbName)
+            Me.m_plScenario.Controls.Add(Me.m_lbAuthor)
+            resources.ApplyResources(Me.m_plScenario, "m_plScenario")
+            Me.m_plScenario.Name = "m_plScenario"
+            '
+            'm_plModel
+            '
+            Me.m_plModel.Controls.Add(Me.m_tlpRunTime)
+            Me.m_plModel.Controls.Add(Me.m_hdrModel)
+            Me.m_plModel.Controls.Add(Me.m_tlpModelTop)
+            resources.ApplyResources(Me.m_plModel, "m_plModel")
+            Me.m_plModel.Name = "m_plModel"
+            '
+            'm_tlpRunTime
+            '
+            resources.ApplyResources(Me.m_tlpRunTime, "m_tlpRunTime")
+            Me.m_tlpRunTime.Controls.Add(Me.m_gbAutoSave, 1, 0)
+            Me.m_tlpRunTime.Controls.Add(Me.m_gbRunTime, 0, 0)
+            Me.m_tlpRunTime.Name = "m_tlpRunTime"
+            '
+            'm_gbAutoSave
+            '
+            Me.m_gbAutoSave.Controls.Add(Me.m_cbAutosaveVisibleOnly)
+            Me.m_gbAutoSave.Controls.Add(Me.m_nudFirstTimeStep)
+            Me.m_gbAutoSave.Controls.Add(Me.m_cbAnnualOutput)
+            Me.m_gbAutoSave.Controls.Add(Me.m_clbAutosave)
+            Me.m_gbAutoSave.Controls.Add(Me.Label2)
+            resources.ApplyResources(Me.m_gbAutoSave, "m_gbAutoSave")
+            Me.m_gbAutoSave.Name = "m_gbAutoSave"
+            Me.m_gbAutoSave.TabStop = False
+            '
+            'm_cbAutosaveVisibleOnly
+            '
+            resources.ApplyResources(Me.m_cbAutosaveVisibleOnly, "m_cbAutosaveVisibleOnly")
+            Me.m_cbAutosaveVisibleOnly.Name = "m_cbAutosaveVisibleOnly"
+            Me.m_cbAutosaveVisibleOnly.UseVisualStyleBackColor = True
+            '
+            'm_plTimeSeries
+            '
+            Me.m_plTimeSeries.Controls.Add(Me.m_lblOutputResidualsFile)
+            Me.m_plTimeSeries.Controls.Add(Me.m_tbxlOutputResidualsFile)
+            Me.m_plTimeSeries.Controls.Add(Me.m_tbxXYTimeSeriesFile)
+            Me.m_plTimeSeries.Controls.Add(Me.m_lblXY)
+            Me.m_plTimeSeries.Controls.Add(Me.m_btnTimeSeriesOutputFile)
+            Me.m_plTimeSeries.Controls.Add(Me.m_btnLoadXYTimeSeries)
+            Me.m_plTimeSeries.Controls.Add(Me.m_cbUseEcosimDiscardForcing)
+            Me.m_plTimeSeries.Controls.Add(Me.m_cbUseEcosimBiomassForcing)
+            Me.m_plTimeSeries.Controls.Add(Me.m_hdrTimeSeries)
+            resources.ApplyResources(Me.m_plTimeSeries, "m_plTimeSeries")
+            Me.m_plTimeSeries.Name = "m_plTimeSeries"
+            '
+            'm_lblOutputResidualsFile
+            '
+            resources.ApplyResources(Me.m_lblOutputResidualsFile, "m_lblOutputResidualsFile")
+            Me.m_lblOutputResidualsFile.Name = "m_lblOutputResidualsFile"
+            '
+            'm_tbxlOutputResidualsFile
+            '
+            resources.ApplyResources(Me.m_tbxlOutputResidualsFile, "m_tbxlOutputResidualsFile")
+            Me.m_tbxlOutputResidualsFile.Name = "m_tbxlOutputResidualsFile"
+            Me.m_tbxlOutputResidualsFile.ReadOnly = True
+            '
+            'm_tbxXYTimeSeriesFile
+            '
+            resources.ApplyResources(Me.m_tbxXYTimeSeriesFile, "m_tbxXYTimeSeriesFile")
+            Me.m_tbxXYTimeSeriesFile.Name = "m_tbxXYTimeSeriesFile"
+            Me.m_tbxXYTimeSeriesFile.ReadOnly = True
+            '
+            'm_lblXY
+            '
+            resources.ApplyResources(Me.m_lblXY, "m_lblXY")
+            Me.m_lblXY.Name = "m_lblXY"
+            '
+            'm_btnTimeSeriesOutputFile
+            '
+            resources.ApplyResources(Me.m_btnTimeSeriesOutputFile, "m_btnTimeSeriesOutputFile")
+            Me.m_btnTimeSeriesOutputFile.Name = "m_btnTimeSeriesOutputFile"
+            Me.m_btnTimeSeriesOutputFile.UseVisualStyleBackColor = True
+            '
+            'm_btnLoadXYTimeSeries
+            '
+            resources.ApplyResources(Me.m_btnLoadXYTimeSeries, "m_btnLoadXYTimeSeries")
+            Me.m_btnLoadXYTimeSeries.Name = "m_btnLoadXYTimeSeries"
+            Me.m_btnLoadXYTimeSeries.UseVisualStyleBackColor = True
+            '
+            'm_cbUseEcosimDiscardForcing
+            '
+            resources.ApplyResources(Me.m_cbUseEcosimDiscardForcing, "m_cbUseEcosimDiscardForcing")
+            Me.m_cbUseEcosimDiscardForcing.Name = "m_cbUseEcosimDiscardForcing"
+            Me.m_cbUseEcosimDiscardForcing.UseVisualStyleBackColor = True
+            '
+            'm_cbUseEcosimBiomassForcing
+            '
+            resources.ApplyResources(Me.m_cbUseEcosimBiomassForcing, "m_cbUseEcosimBiomassForcing")
+            Me.m_cbUseEcosimBiomassForcing.Name = "m_cbUseEcosimBiomassForcing"
+            Me.m_cbUseEcosimBiomassForcing.UseVisualStyleBackColor = True
+            '
+            'm_hdrTimeSeries
+            '
+            resources.ApplyResources(Me.m_hdrTimeSeries, "m_hdrTimeSeries")
+            Me.m_hdrTimeSeries.CanCollapseParent = True
+            Me.m_hdrTimeSeries.CollapsedParentHeight = 0
+            Me.m_hdrTimeSeries.IsCollapsed = False
+            Me.m_hdrTimeSeries.Name = "m_hdrTimeSeries"
+            '
+            'm_plEffortDistr
+            '
+            resources.ApplyResources(Me.m_plEffortDistr, "m_plEffortDistr")
+            Me.m_plEffortDistr.Controls.Add(Me.m_tbPredEffortRelax)
+            Me.m_plEffortDistr.Controls.Add(Me.m_lbEffortRelax)
+            Me.m_plEffortDistr.Controls.Add(Me.m_tbFirstPenaltyMonth)
+            Me.m_plEffortDistr.Controls.Add(Me.m_lbFirstMonthPen)
+            Me.m_plEffortDistr.Controls.Add(Me.m_tbPenPow)
+            Me.m_plEffortDistr.Controls.Add(Me.m_lbPenPow)
+            Me.m_plEffortDistr.Controls.Add(Me.m_tbEffortAdjustWeight)
+            Me.m_plEffortDistr.Controls.Add(Me.m_lbAdjustEffort)
+            Me.m_plEffortDistr.Controls.Add(Me.m_cbUsePenalty)
+            Me.m_plEffortDistr.Controls.Add(Me.m_hdrSpatialPenalty)
+            Me.m_plEffortDistr.Name = "m_plEffortDistr"
+            '
+            'm_tbPredEffortRelax
+            '
+            resources.ApplyResources(Me.m_tbPredEffortRelax, "m_tbPredEffortRelax")
+            Me.m_tbPredEffortRelax.Name = "m_tbPredEffortRelax"
+            '
+            'm_lbEffortRelax
+            '
+            resources.ApplyResources(Me.m_lbEffortRelax, "m_lbEffortRelax")
+            Me.m_lbEffortRelax.Name = "m_lbEffortRelax"
+            '
+            'm_tbFirstPenaltyMonth
+            '
+            resources.ApplyResources(Me.m_tbFirstPenaltyMonth, "m_tbFirstPenaltyMonth")
+            Me.m_tbFirstPenaltyMonth.Name = "m_tbFirstPenaltyMonth"
+            '
+            'm_lbFirstMonthPen
+            '
+            resources.ApplyResources(Me.m_lbFirstMonthPen, "m_lbFirstMonthPen")
+            Me.m_lbFirstMonthPen.Name = "m_lbFirstMonthPen"
+            '
+            'm_tbPenPow
+            '
+            resources.ApplyResources(Me.m_tbPenPow, "m_tbPenPow")
+            Me.m_tbPenPow.Name = "m_tbPenPow"
+            '
+            'm_lbPenPow
+            '
+            resources.ApplyResources(Me.m_lbPenPow, "m_lbPenPow")
+            Me.m_lbPenPow.Name = "m_lbPenPow"
+            '
+            'm_tbEffortAdjustWeight
+            '
+            resources.ApplyResources(Me.m_tbEffortAdjustWeight, "m_tbEffortAdjustWeight")
+            Me.m_tbEffortAdjustWeight.Name = "m_tbEffortAdjustWeight"
+            '
+            'm_lbAdjustEffort
+            '
+            resources.ApplyResources(Me.m_lbAdjustEffort, "m_lbAdjustEffort")
+            Me.m_lbAdjustEffort.Name = "m_lbAdjustEffort"
+            '
+            'm_cbUsePenalty
+            '
+            resources.ApplyResources(Me.m_cbUsePenalty, "m_cbUsePenalty")
+            Me.m_cbUsePenalty.Name = "m_cbUsePenalty"
+            Me.m_cbUsePenalty.UseVisualStyleBackColor = True
+            '
+            'm_hdrSpatialPenalty
+            '
+            Me.m_hdrSpatialPenalty.CanCollapseParent = True
+            Me.m_hdrSpatialPenalty.CollapsedParentHeight = 0
+            resources.ApplyResources(Me.m_hdrSpatialPenalty, "m_hdrSpatialPenalty")
+            Me.m_hdrSpatialPenalty.IsCollapsed = False
+            Me.m_hdrSpatialPenalty.Name = "m_hdrSpatialPenalty"
+            '
+            'frmEcospaceParameters
+            '
+            Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit
+            resources.ApplyResources(Me, "$this")
+            Me.Controls.Add(Me.m_tlpStuff)
+            Me.Name = "frmEcospaceParameters"
+            Me.TabText = ""
+            m_gbModel.ResumeLayout(False)
+            m_gbModel.PerformLayout()
+            Me.m_tlpModelTop.ResumeLayout(False)
+            Me.m_gbMigration.ResumeLayout(False)
+            Me.m_gbMigration.PerformLayout()
+            Me.m_gbIMB.ResumeLayout(False)
+            Me.m_gbIMB.PerformLayout()
+            Me.m_gbCapacity.ResumeLayout(False)
+            Me.m_gbCapacity.PerformLayout()
+            CType(Me.m_nudNumThreads, System.ComponentModel.ISupportInitialize).EndInit()
+            CType(Me.m_nudMaxIterations, System.ComponentModel.ISupportInitialize).EndInit()
+            Me.m_gbRunTime.ResumeLayout(False)
+            Me.m_gbRunTime.PerformLayout()
+            CType(Me.m_nudFirstTimeStep, System.ComponentModel.ISupportInitialize).EndInit()
+            Me.m_plBiomass.ResumeLayout(False)
+            Me.m_plBiomass.PerformLayout()
+            Me.m_tlpStuff.ResumeLayout(False)
+            Me.m_plScenario.ResumeLayout(False)
+            Me.m_plScenario.PerformLayout()
+            Me.m_plModel.ResumeLayout(False)
+            Me.m_tlpRunTime.ResumeLayout(False)
+            Me.m_gbAutoSave.ResumeLayout(False)
+            Me.m_gbAutoSave.PerformLayout()
+            Me.m_plTimeSeries.ResumeLayout(False)
+            Me.m_plTimeSeries.PerformLayout()
+            Me.m_plEffortDistr.ResumeLayout(False)
+            Me.m_plEffortDistr.PerformLayout()
+            Me.ResumeLayout(False)
+
+        End Sub
+        Private WithEvents m_plBiomass As System.Windows.Forms.Panel
+        Private WithEvents m_lbScenarioName As System.Windows.Forms.Label
+        Private WithEvents m_hdrScenario As cEwEHeaderLabel
+        Private WithEvents m_tbName As System.Windows.Forms.TextBox
+        Private WithEvents m_tbDescription As System.Windows.Forms.TextBox
+        Private WithEvents m_tbContact As System.Windows.Forms.TextBox
+        Private WithEvents m_tbAuthor As System.Windows.Forms.TextBox
+        Private WithEvents m_lbContact As System.Windows.Forms.Label
+        Private WithEvents m_lbAuthor As System.Windows.Forms.Label
+        Private WithEvents m_lblDescription As System.Windows.Forms.Label
+        Private WithEvents m_hdrInitialization As cEwEHeaderLabel
+        Private WithEvents m_rbBaseBiomass As System.Windows.Forms.RadioButton
+        Private WithEvents m_rbAdjustedBiomass As System.Windows.Forms.RadioButton
+        Private WithEvents m_hdrModel As cEwEHeaderLabel
+        Private WithEvents m_tlpModelTop As System.Windows.Forms.TableLayoutPanel
+        Private WithEvents m_rbNewStanzaModel As System.Windows.Forms.RadioButton
+        Private WithEvents m_rbIBM As System.Windows.Forms.RadioButton
+        Private WithEvents m_rbOldSchool As System.Windows.Forms.RadioButton
+        Private WithEvents m_gbRunTime As System.Windows.Forms.GroupBox
+        Private WithEvents m_lbTotalTime As System.Windows.Forms.Label
+        Private WithEvents m_tbTotalTime As System.Windows.Forms.TextBox
+        Private WithEvents m_lblNumTimstepsPerYear As System.Windows.Forms.Label
+        Private WithEvents m_tbNumTimeStepsPerYear As System.Windows.Forms.TextBox
+        Private WithEvents m_lbNumIterations As System.Windows.Forms.Label
+        Private WithEvents m_lbTolerance As System.Windows.Forms.Label
+        Private WithEvents m_tbTolerance As System.Windows.Forms.TextBox
+        Private WithEvents m_tbSOR As System.Windows.Forms.TextBox
+        Private WithEvents m_lbSOR As System.Windows.Forms.Label
+        Private WithEvents m_cbUseExact As System.Windows.Forms.CheckBox
+        Private WithEvents m_cbContaminantTracing As System.Windows.Forms.CheckBox
+        Private WithEvents m_nudMaxIterations As ScientificInterfaceShared.Controls.cEwENumericUpDown
+        Private WithEvents m_gbMigration As System.Windows.Forms.GroupBox
+        Private WithEvents m_lbNumThreads As System.Windows.Forms.Label
+        Private WithEvents m_nudNumThreads As ScientificInterfaceShared.Controls.cEwENumericUpDown
+        Private WithEvents m_tbNumPackets As System.Windows.Forms.TextBox
+        Private WithEvents m_lbPacketsMultiplier As System.Windows.Forms.Label
+        Private WithEvents m_plScenario As System.Windows.Forms.Panel
+        Private WithEvents m_plModel As System.Windows.Forms.Panel
+        Private WithEvents m_tlpStuff As System.Windows.Forms.TableLayoutPanel
+        Private WithEvents Label2 As System.Windows.Forms.Label
+        Private WithEvents m_nudFirstTimeStep As ScientificInterfaceShared.Controls.cEwENumericUpDown
+        Private WithEvents m_clbAutosave As System.Windows.Forms.CheckedListBox
+        Private WithEvents m_cbAnnualOutput As System.Windows.Forms.CheckBox
+        Private WithEvents m_plTimeSeries As Panel
+        Private WithEvents m_hdrTimeSeries As cEwEHeaderLabel
+        Private WithEvents m_cbUseEcosimBiomassForcing As CheckBox
+        Private WithEvents m_btnLoadXYTimeSeries As Button
+        Private WithEvents m_btnTimeSeriesOutputFile As Button
+        Private WithEvents m_lblOutputResidualsFile As Label
+        Private WithEvents m_tbxlOutputResidualsFile As TextBox
+        Private WithEvents m_tbxXYTimeSeriesFile As TextBox
+        Private WithEvents m_lblXY As Label
+        Private WithEvents m_cbUseEcosimDiscardForcing As CheckBox
+        Private WithEvents m_rbEcopathEffort As RadioButton
+        Private WithEvents m_rbPredictEffort As RadioButton
+        Private WithEvents m_tlpRunTime As TableLayoutPanel
+        Private WithEvents m_gbAutoSave As GroupBox
+        Private WithEvents m_gbCapacity As GroupBox
+        Private WithEvents m_cbCalcHabCapGrad As CheckBox
+        Private WithEvents m_gbIMB As GroupBox
+        Private WithEvents m_cbMovePackets As CheckBox
+        Private WithEvents m_lblMinCap As Label
+        Private WithEvents m_tbxMinCap As TextBox
+        Private WithEvents m_plEffortDistr As Panel
+        Private WithEvents m_hdrSpatialPenalty As cEwEHeaderLabel
+        Private WithEvents m_cbUsePenalty As CheckBox
+        Private WithEvents m_lbPenPow As Label
+        Private WithEvents m_tbEffortAdjustWeight As TextBox
+        Private WithEvents m_lbAdjustEffort As Label
+        Private WithEvents m_tbPenPow As TextBox
+        Private WithEvents m_cbAutosaveVisibleOnly As CheckBox
+        Private WithEvents m_tbFirstPenaltyMonth As TextBox
+        Private WithEvents m_lbFirstMonthPen As Label
+        Private WithEvents m_tbPredEffortRelax As TextBox
+        Private WithEvents m_lbEffortRelax As Label
+        Private WithEvents m_Couplage As System.Windows.Forms.RadioButton
+    End Class
+
+End Namespace

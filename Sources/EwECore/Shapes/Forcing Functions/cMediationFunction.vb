@@ -1,0 +1,279 @@
+﻿' ===============================================================================
+' This file is part of Ecopath with Ecosim (EwE)
+'
+' EwE is free software: you can redistribute it and/or modify it under the terms
+' of the GNU General Public License version 2 as published by the Free Software 
+' Foundation.
+'
+' EwE is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+' without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+' PURPOSE. See the GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License along with EwE.
+' If not, see <http://www.gnu.org/licenses/gpl-2.0.html>. 
+'
+' Copyright 1991- 
+'    Ecopath International Initiative, Barcelona, Spain
+' ===============================================================================
+'
+
+Option Strict On
+Imports EwEUtils.Core
+
+''' <summary>
+''' Mediation functions inherit their base functionality from cMediationBaseFunction 
+''' which provide the underlying shape data and Ecopath base line properties. 
+''' This implements loading and updating of the correct core data for this type of mediation function. 
+''' </summary>
+Public Class cMediationFunction
+    Inherits cMediationBaseFunction
+
+    Private m_groups As New List(Of cMediatingGroup)
+    Private m_fleets As New List(Of cMediatingFleet)
+
+#Region " Constructors "
+
+    Friend Sub New(EcoSimData As cEcosimDatastructures, Manager As cBaseShapeManager, _
+                   data As cMediationDataStructures, DBID As Integer, DataType As eDataTypes)
+        'mediation data arrays from EcoSim
+        'Public MedWeights(nGroups + nGear, MediationShapes) As Single 'defines biomass weights for med X
+        'Public NMedXused() As Integer 'number of biomasses (mediation weights) in an iMediation
+        'Public IMedUsed(,) As Integer 'groups used in med function X IMedUsed(nGroups + nGear, MediationShapes)
+        'Public MedXbase() As Single 'ecopath base value of med function X
+        'Public MedYbase() As Single 'value of med function at ecopath base X
+        'Public MedIsUsed() As Boolean 'true if med function iMediation is used
+        MyBase.New(EcoSimData, Manager, data, DBID, DataType)
+
+        Try
+
+            Dim iShape As Integer = Me.m_iEcoSimIndex 'just for clarity
+
+            Me.m_manager = Manager 'keep a reference to the manager for this shape
+
+            Dim grp As cMediatingGroup = Nothing
+            Dim flt As cMediatingFleet = Nothing
+
+            ' Groups: if this mediation shape has any weights applied to it then load the weight and group into an object
+            For iGrp As Integer = 1 To Me.m_data.nGroups
+                If Me.m_medData.MedWeights(iGrp, iShape) > 0 Then
+                    grp = New cMediatingGroup
+                    grp.iGroupIndex = iGrp ' m_data.IMedUsed(iGrp, iShape)
+                    grp.Weight = Me.m_medData.MedWeights(iGrp, iShape)
+                    Me.m_groups.Add(grp)
+                End If
+            Next
+
+            ' Fleets: if this mediation shape has any weights applied to it then load the weight and fleet into an object
+            For iFlt As Integer = 1 To Me.m_data.nGear
+                If Me.m_medData.MedWeights(Me.m_data.nGroups + iFlt, iShape) > 0 Then
+                    flt = New cMediatingFleet
+                    flt.iFleetIndex = iFlt ' m_data.IMedUsed(iGrp, iShape)
+                    flt.Weight = Me.m_medData.MedWeights(Me.m_data.nGroups + iFlt, iShape)
+                    Me.m_fleets.Add(flt)
+                End If
+            Next
+
+            Me.m_bInInit = False
+        Catch ex As Exception
+            Debug.Assert(False, Me.ToString & ".New() Error: " & ex.Message)
+            Throw New ApplicationException(Me.ToString & ".New() Error: " & ex.Message, ex)
+        End Try
+
+    End Sub
+
+
+#End Region ' Constructors
+
+#Region "Properties"
+
+#End Region
+
+#Region " Updating "
+
+    ''' <summary>
+    ''' Update the underlying EcoSim data structures
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Overrides Function Update() As Boolean
+        MyBase.Update()
+
+        'do not update during initialization
+        If Me.m_bInInit Then
+            Return False
+        End If
+
+
+        Dim nused As Integer
+        For Each grp As cMediatingGroup In Me.m_groups
+            nused += 1
+            Me.m_medData.IMedUsed(grp.iGroupIndex, Me.m_iEcoSimIndex) = grp.iGroupIndex
+            Me.m_medData.MedWeights(grp.iGroupIndex, Me.m_iEcoSimIndex) = grp.Weight
+        Next grp
+
+        nused = 0
+        For Each flt As cMediatingFleet In Me.m_fleets
+            nused += 1
+            Me.m_medData.IMedUsed(Me.m_data.nGroups + flt.iFleetIndex, Me.m_iEcoSimIndex) = flt.iFleetIndex
+            Me.m_medData.MedWeights(Me.m_data.nGroups + flt.iFleetIndex, Me.m_iEcoSimIndex) = flt.Weight
+        Next flt
+
+        Me.m_medData.NMedXused(Me.m_iEcoSimIndex) = nused
+
+        'tell the manager that a shape has changed it's data
+        Me.ShapeChanged()
+
+        Return True
+
+    End Function
+
+    ''' <summary>
+    ''' Clear all the data, in the underlying ecosim data, out of the MedWeights for this mediation shape.
+    ''' </summary>
+    ''' <remarks>
+    ''' This is used if a mediating group is removed to clear the ecosim data before the group is removed from the list. 
+    ''' This must be used in conjuction the Update() to restore the data
+    ''' </remarks>
+    Private Sub clearMedWeights()
+
+        Try
+
+            For Each grp As cMediatingGroup In Me.m_groups
+                Me.m_medData.IMedUsed(grp.iGroupIndex, Me.m_iEcoSimIndex) = 0
+                Me.m_medData.MedWeights(grp.iGroupIndex, Me.m_iEcoSimIndex) = 0
+            Next grp
+
+            For Each flt As cMediatingFleet In Me.m_fleets
+                Me.m_medData.IMedUsed(Me.m_data.nGroups + flt.iFleetIndex, Me.m_iEcoSimIndex) = 0
+                Me.m_medData.MedWeights(Me.m_data.nGroups + flt.iFleetIndex, Me.m_iEcoSimIndex) = 0
+            Next flt
+
+        Catch ex As Exception
+            Debug.Assert(False)
+        End Try
+    End Sub
+
+#End Region ' Updating
+
+#Region " Implementation of Must Override properties "
+
+    ''' <inheritdocs cref="cMediationBaseFunction.AddGroup"/>
+    Public Overloads Overrides Function AddGroup(iGroup As Integer, weight As Single, Optional iFleetIndex As Integer = cCore.NULL_VALUE) As Boolean
+        'ToDo: data validation
+        Debug.Assert(iFleetIndex <= 0, Me.ToString & ".AddGroup() Invalid Fleet index")
+        Me.m_groups.Add(New cMediatingGroup(iGroup, weight))
+        Me.Update()
+        Return True
+
+    End Function
+
+    ''' <inheritdocs cref="cMediationBaseFunction.NumGroups"/>
+    Public Overrides ReadOnly Property NumGroups() As Integer
+        Get
+            Return Me.m_groups.Count
+        End Get
+    End Property
+
+    ''' <inheritdocs cref="cMediationBaseFunction.Group"/>
+    Public Overrides Property Group(iGroup As Integer) As cMediatingGroup
+        Get
+            Return Me.m_groups(iGroup)
+        End Get
+
+        Set(value As cMediatingGroup)
+            Me.m_groups.Item(iGroup) = value
+            Me.Update()
+        End Set
+    End Property
+
+    ''' <inheritdocs cref="cForcingFunction.Clear"/>
+    Public Overrides Sub Clear()
+
+        Try
+            'clear the ecosim data
+            Me.clearMedWeights()
+            Me.m_groups.Clear()
+            Me.m_fleets.Clear()
+
+            MyBase.Clear()
+
+        Catch ex As Exception
+            Debug.Assert(False)
+        End Try
+
+    End Sub
+
+    ''' <inheritdocs cref="cMediationBaseFunction.AddFleet"/>
+    Public Overrides Function AddFleet(iFleet As Integer, weight As Single) As Boolean
+
+        'ToDo: data validation
+        Me.m_fleets.Add(New cMediatingFleet(iFleet, weight))
+        Me.Update()
+        Return True
+    End Function
+
+    ''' <inheritdocs cref="cMediationBaseFunction.Fleet"/>
+    Public Overrides Property Fleet(iFleet As Integer) As cMediatingFleet
+
+        Get
+            Return Me.m_fleets(iFleet)
+        End Get
+
+        Set(value As cMediatingFleet)
+            Me.m_fleets.Item(iFleet) = value
+            Me.Update()
+        End Set
+
+    End Property
+
+    ''' <inheritdocs cref="cMediationBaseFunction.NumFleet"/>
+    Public Overrides ReadOnly Property NumFleet() As Integer
+        Get
+            Return Me.m_fleets.Count
+        End Get
+    End Property
+
+    ''' <summary>
+    ''' 
+    ''' </summary>
+    ''' <param name="iIndex">Zero-based index [0, <see cref="NumFleet"/>-1] of the 
+    ''' mediating group to remove.</param>
+    ''' <returns></returns>
+    Public Function RemoveFleet(iIndex As Integer) As Boolean
+
+        Try
+            'clear the ecosim data
+            Me.clearMedWeights()
+            'remove the fleet from the list
+            Me.m_fleets.RemoveAt(iIndex)
+            'update the ecosim data with the remaining fleet(s)
+            Me.Update()
+
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+
+    End Function
+
+    Public Function RemoveFleet(ByRef fleet As cMediatingFleet) As Boolean
+
+        Try
+            'clear the ecosim data
+            Me.clearMedWeights()
+            'remove the fleet from the list
+            Me.m_fleets.Remove(fleet)
+            'update the ecosim data with the remaining fleet(s)
+            Me.Update()
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+
+    End Function
+
+#End Region '  List Interfaces
+
+End Class
+
+

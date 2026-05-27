@@ -1,0 +1,1129 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Platforms>x86;x64;AnyCPU</Platforms>
+    <OutputType>WinExe</OutputType>
+    <StartupObject>ScientificInterface.EwE6ApplicationFramework</StartupObject>
+    <AssemblyName>EwE6</AssemblyName>
+    <MyType>WindowsFormsWithCustomSubMain</MyType>
+    <OptionStrict>On</OptionStrict>
+    <ApplicationIcon>Resources\Ecopath0.ico</ApplicationIcon>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>ScientificInterface.snk</AssemblyOriginatorKeyFile>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Company>Ecopath International Initiative Research Association</Company>
+    <Product>Ecopath with Ecosim</Product>
+    <Copyright>Copyright © 1991</Copyright>
+    <Description>Ecopath with Ecosim (EwE) is a free ecological/ecosystem modeling software suite. EwE has three main components: Ecopath - a static, mass-balanced snapshot of the system; Ecosim - a time dynamic simulation module for policy exploration; and Ecospace - a spatial and temporal dynamic module primarily designed for exploring impact and placement of protected areas.</Description>
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
+    <EmbeddedResourceUseDependentUponConvention>true</EmbeddedResourceUseDependentUponConvention>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DocumentationFile>EwE6.xml</DocumentationFile>
+    <DefineConstants>UNDER_DEVELOPMENT=1</DefineConstants>
+    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <NoWarn>42353,42354,42355</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DefineDebug>false</DefineDebug>
+    <DocumentationFile>EwE6.xml</DocumentationFile>
+    <DefineConstants>UNDER_DEVELOPMENT=1</DefineConstants>
+    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <NoWarn>42353,42354,42355</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>BETA=0</DefineConstants>
+    <DocumentationFile>EwE6.xml</DocumentationFile>
+    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <NoWarn>42353,42354,42355</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>BETA=0</DefineConstants>
+    <DocumentationFile>EwE6.xml</DocumentationFile>
+    <DebugType>None</DebugType>
+    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <NoWarn>42353,42354,42355</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>BETA=1</DefineConstants>
+    <DocumentationFile>EwE6.xml</DocumentationFile>
+    <NoWarn>42353,42354,42355</NoWarn>
+    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>UNDER_DEVELOPMENT=1</DefineConstants>
+    <DocumentationFile>EwE6.xml</DocumentationFile>
+    <NoWarn>42353,42354,42355</NoWarn>
+    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>My Project\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="SourceGrid2">
+      <HintPath>..\ScientificInterfaceShared\Includes\SourceGrid2.dll</HintPath>
+    </Reference>
+    <Reference Include="SourceLibrary">
+      <HintPath>..\ScientificInterfaceShared\Includes\SourceLibrary.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Configuration" />
+    <Reference Update="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Net" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="WeifenLuo.WinFormsUI.Docking">
+      <HintPath>..\ScientificInterfaceShared\Includes\WeifenLuo.WinFormsUI.Docking.dll</HintPath>
+    </Reference>
+    <Reference Include="ZedGraph">
+      <HintPath>..\ScientificInterfaceShared\Includes\ZedGraph.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Import Include="ScientificInterfaceShared.Commands" />
+    <Import Include="ScientificInterfaceShared.Controls" />
+    <Import Include="ScientificInterfaceShared.Controls.EwEGrid" />
+    <Import Include="ScientificInterfaceShared.Definitions" />
+    <Import Include="ScientificInterfaceShared.Extensions" />
+    <Import Include="ScientificInterfaceShared.Forms" />
+    <Import Include="ScientificInterfaceShared.Properties" />
+    <Import Include="ScientificInterfaceShared.Style" />
+    <Import Include="System.Drawing" />
+    <Import Include="System.Windows.Forms" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Controls\dlgSelectEnvironmentalResponse.Designer.vb">
+      <DependentUpon>dlgSelectEnvironmentalResponse.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecobase\cEcoBaseModelListBox.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecobase\dlgEcobaseExport.Designer.vb">
+      <DependentUpon>dlgEcobaseExport.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\frmModelParameters.Designer.vb">
+      <DependentUpon>frmModelParameters.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFisheryOutputDiscard.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFisheryOutputDiscardSurvival.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFisheryOutputDiscardMort.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFisheryOutputLandings.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Taxonomy and traits\dlgDefineTaxonomy.Designer.vb">
+      <DependentUpon>dlgDefineTaxonomy.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Taxonomy and traits\gridDefineTaxonomy.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Tools\DietTreeMapDiagram\frmEcopathDietTreeMaps.Designer.vb">
+      <DependentUpon>frmEcopathDietTreeMaps.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ApplyGrid\gridApplyOtherMortShape.Designer.vb">
+      <DependentUpon>gridApplyOtherMortShape.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ApplyGrid\gridApplyOtherMortShape.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\dlgApplyGroupShape.Designer.vb">
+      <DependentUpon>dlgApplyGroupShape.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\Catchabilities\gridEcosimCatchability.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\EggProduction\frmApplyEP.Designer.vb">
+      <DependentUpon>frmApplyEP.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\EggProduction\gridApplyEP.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\Arenas\frmEcosimArenaShare.Designer.vb">
+      <DependentUpon>frmEcosimArenaShare.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\FunctionalResponses\frmEcosimEnvironmentalResponse.Designer.vb">
+      <DependentUpon>frmEcosimEnvironmentalResponse.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\FunctionalResponses\gridApplyFunctionalResponses.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\Arenas\gridEcosimArenaShare.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\FunctionalResponses\gridApplyMortalityResponses.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\Vulnerabilities\dlgScaleVs.Designer.vb">
+      <DependentUpon>dlgScaleVs.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\frmEcosimOutputFleetPlots.Designer.vb">
+      <DependentUpon>frmEcosimOutputFleetPlots.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset application\dlgApplyConnection.Designer.vb">
+      <DependentUpon>dlgApplyConnection.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset application\gridApplyDatasets.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset management\dlgExportSpatialData.Designer.vb">
+      <DependentUpon>dlgExportSpatialData.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Settings\frmCapacityCalcType.Designer.vb">
+      <DependentUpon>frmCapacityCalcType.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Settings\gridCapacityCalcType.Designer.vb">
+      <DependentUpon>gridCapacityCalcType.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Settings\gridCapacityCalcType.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Shape\frmEcospaceEnvironmentalResponses.Designer.vb">
+      <DependentUpon>frmEcospaceEnvironmentalResponses.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgDefineEffortZones.Designer.vb">
+      <DependentUpon>dlgDefineEffortZones.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\frmEcospaceComputedCapacity.Designer.vb">
+      <DependentUpon>frmEcospaceComputedCapacity.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\frmEcospaceHabitatFishery.Designer.vb">
+      <DependentUpon>frmEcospaceHabitatFishery.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\frmEcospaceMPAEnforcement.Designer.vb">
+      <DependentUpon>frmEcospaceMPAEnforcement.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\frmMPAs.Designer.vb">
+      <DependentUpon>frmMPAs.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridEcospaceFTarget.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridEcospaceFleetDynamics.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridEcospaceHabitatFishery.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridEcospaceMPAEnforcement.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridMPAs.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\Mortaility\frmApplyMortalityResponses.Designer.vb">
+      <DependentUpon>frmApplyMortalityResponses.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Mortaility\gridApplyMortalityResponses.Designer.vb">
+      <DependentUpon>gridApplyMortalityResponses.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Mortaility\gridApplyMortalityResponses.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="frmEwE6.Designer.vb">
+      <DependentUpon>frmEwE6.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\ImportExport\gridExportLayerMappings.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Assets\ImportExport\gridImportLayerMappings.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset application\cSpatialDatasetListbox.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset management\dlgDefineExternalSpatialData.Designer.vb">
+      <DependentUpon>dlgDefineExternalSpatialData.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset management\gridDefineExternalSpatialData.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset overview\gridExternalSpatialData.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgDefineRegions.Designer.vb">
+      <DependentUpon>dlgDefineRegions.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Controls\cEwEStatusBar.designer.vb">
+      <DependentUpon>cEwEStatusBar.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\dlgDefineFleets.Designer.vb">
+      <DependentUpon>dlgDefineFleets.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\gridDefineFleets.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\dlgDefineGroups.Designer.vb">
+      <DependentUpon>dlgDefineGroups.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\gridDefineGroups.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\dlgEditMultiStanza.Designer.vb">
+      <DependentUpon>dlgEditMultiStanza.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\gridEditMultiStanza.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\frmDietComp.Designer.vb">
+      <DependentUpon>frmDietComp.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ForcingFunction\frmApplyFFDetritus.Designer.vb">
+      <DependentUpon>frmApplyFFDetritus.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ForcingFunction\frmApplyFFPrimaryProducer.Designer.vb">
+      <DependentUpon>frmApplyFFPrimaryProducer.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\Mediation\frmApplyMedProducer.Designer.vb">
+      <DependentUpon>frmApplyMedProducer.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\frmStockRecruitmentPlot.Designer.vb">
+      <DependentUpon>frmStockRecruitmentPlot.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\MSY\frmMSY.Designer.vb">
+      <DependentUpon>frmMSY.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\ImportExport\dlgExportLayerDataXYZ.designer.vb">
+      <DependentUpon>dlgExportLayerDataXYZ.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset overview\frmExtermalSpatialData.Designer.vb">
+      <DependentUpon>frmExtermalSpatialData.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset overview\ucSpatialTimeSeriesToolbox.Designer.vb">
+      <DependentUpon>ucSpatialTimeSeriesToolbox.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Assets\SpatialTemporalData\Dataset overview\ucSpatialTimeSeriesToolbox.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgDefineEnvDriverMaps.Designer.vb">
+      <DependentUpon>dlgDefineEnvDriverMaps.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgEditLayer.Designer.vb">
+      <DependentUpon>dlgEditLayer.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridLayerData.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="My Project\Resources.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Update="Other\AboutBox\gridDatabase.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecobase\dlgEcobaseImport.Designer.vb">
+      <DependentUpon>dlgEcobaseImport.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\AutoRunOptionAssets\gridAutoRun.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsAutoRun.Designer.vb">
+      <DependentUpon>ucOptionsAutoRun.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsAutoRun.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsColorRamps.Designer.vb">
+      <DependentUpon>ucOptionsColorRamps.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsColorRamps.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsFonts.Designer.vb">
+      <DependentUpon>ucOptionsFonts.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsFonts.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\SplashScreen\frmSplash.Designer.vb">
+      <DependentUpon>frmSplash.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageError.Designer.vb">
+      <DependentUpon>ucImportPageError.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageError.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\AutoSaveOptionAssets\ucAutosaveOption.Designer.vb">
+      <DependentUpon>ucAutosaveOption.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\AutoSaveOptionAssets\ucAutosaveOption.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsSpatialTemporal.Designer.vb">
+      <DependentUpon>ucOptionsSpatialTemporal.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsSpatialTemporal.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPedigree.Designer.vb">
+      <DependentUpon>ucOptionsPedigree.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPedigree.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsMap.Designer.vb">
+      <DependentUpon>ucOptionsMap.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsMap.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPlugins.Designer.vb">
+      <DependentUpon>ucOptionsPlugins.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPlugins.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsFileManagement.Designer.vb">
+      <DependentUpon>ucOptionsFileManagement.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsFileManagement.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Panels\RemarkPanel\frmRemarkPanel.Designer.vb">
+      <DependentUpon>frmRemarkPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\gridMSEBatchFixedFIter.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\frmMSEBatchFixedF.Designer.vb">
+      <DependentUpon>frmMSEBatchFixedF.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\gridMSEBatchFixedF.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\gridMSEBatchTFMIter.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\frmMSEBatchParameters.Designer.vb">
+      <DependentUpon>frmMSEBatchParameters.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\frmMSEBatchTFM.Designer.vb">
+      <DependentUpon>frmMSEBatchTFM.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\gridMSEBatchTFM.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridFleetLPEffortBounds.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgDefineImportanceMaps.Designer.vb">
+      <DependentUpon>dlgDefineImportanceMaps.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridDefineImportanceMaps.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Tools\frmMPAOptimizations.Designer.vb">
+      <DependentUpon>frmMPAOptimizations.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecotracer\Input\gridEcotracerInput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\EggProduction\frmEggProduction.Designer.vb">
+      <DependentUpon>frmEggProduction.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\gridEcosimFleetSizeDynamics.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\FishingEffort\frmFishingEffort.Designer.vb">
+      <DependentUpon>frmFishingEffort.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\FishingMortality\frmFishingMortality.Designer.vb">
+      <DependentUpon>frmFishingMortality.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\TimeSeries\frmTimeSeries.Designer.vb">
+      <DependentUpon>frmTimeSeries.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\Vulnerabilities\frmVulnerabilities.Designer.vb">
+      <DependentUpon>frmVulnerabilities.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\ShowAllFits\dlgChangeYScale.Designer.vb">
+      <DependentUpon>dlgChangeYScale.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\MonteCarlo\frmMCRun.Designer.vb">
+      <DependentUpon>frmMCRun.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\MonteCarlo\gridMCRunInput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\MonteCarlo\gridMCRunOutput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Output\ShowAllFits\dlgSelectAllFitsPlots.Designer.vb">
+      <DependentUpon>dlgSelectAllFitsPlots.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\ShowAllFits\frmShowAllFits.Designer.vb">
+      <DependentUpon>frmShowAllFits.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ForcingFunction\frmForcingFunction.Designer.vb">
+      <DependentUpon>frmForcingFunction.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\MediationFunction\frmMediationFunction.Designer.vb">
+      <DependentUpon>frmMediationFunction.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\frmEcosimOutputGroupPlots.Designer.vb">
+      <DependentUpon>frmEcosimOutputGroupPlots.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\frmEcosimResults.Designer.vb">
+      <DependentUpon>frmEcosimResults.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\gridEcosimResultsFleet.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Output\gridEcosimResultsGroup.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Other\dlgShowHideItems.Designer.vb">
+      <DependentUpon>dlgShowHideItems.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fit to time series\dlgSensitivityOfSStoV.Designer.vb">
+      <DependentUpon>dlgSensitivityOfSStoV.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fishing policy search\gridFPSResultFleetValue.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fishing policy search\gridFPSResultSystemObjectives.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fishing policy search\frmFishingPolicySearch.Designer.vb">
+      <DependentUpon>frmFishingPolicySearch.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fit to time series\frmFitToTimeSeries.Designer.vb">
+      <DependentUpon>frmFitToTimeSeries.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Search\gridSearchObjectivesFleet.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Search\gridSearchObjectivesGroup.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Shared\ucParmBlockCodes.Designer.vb">
+      <DependentUpon>ucParmBlockCodes.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Shared\ucParmBlockCodes.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Shared\ucPolicyColorBlocks.Designer.vb">
+      <DependentUpon>ucPolicyColorBlocks.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Shared\ucPolicyColorBlocks.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Shared\ucAnomalySearchSketchPad.Designer.vb">
+      <DependentUpon>ucAnomalySearchSketchPad.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Shared\ucAnomalySearchSketchPad.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fit to time series\ucVulnerabiltyBlocks.Designer.vb">
+      <DependentUpon>ucVulnerabiltyBlocks.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fit to time series\ucVulnerabiltyBlocks.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Search\gridSearchObjectivesWeight.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\frmEcospaceMap.Designer.vb">
+      <DependentUpon>frmEcospaceMap.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgEditBasemap.Designer.vb">
+      <DependentUpon>dlgEditBasemap.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\frmEcospaceParameters.Designer.vb">
+      <DependentUpon>frmEcospaceParameters.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Settings\gridHabitatPreference.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridDefineHabitats.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridDefineMPAs.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridEcospaceDispersal.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgDefineHabitats.Designer.vb">
+      <DependentUpon>dlgDefineHabitats.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\dlgDefineMPAs.Designer.vb">
+      <DependentUpon>dlgDefineMPAs.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Output\EcospaceResultsGridRegion.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Output\EcospaceResultsGridGroup.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Output\frmEcospaceResults.Designer.vb">
+      <DependentUpon>frmEcospaceResults.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Output\EcospaceResultsGridGear.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Output\frmRunEcospace.Designer.vb">
+      <DependentUpon>frmRunEcospace.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecotracer\Input\frmEcotracerInput.Designer.vb">
+      <DependentUpon>frmEcotracerInput.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecotracer\Input\frmEcotracerParameters.Designer.vb">
+      <DependentUpon>frmEcotracerParameters.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecotracer\Output\frmEcotracerOutput.Designer.vb">
+      <DependentUpon>frmEcotracerOutput.vb</DependentUpon>
+    </Compile>
+    <Compile Update="My Project\Application.Designer.vb">
+      <DependentUpon>Application.myapp</DependentUpon>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <Compile Update="Other\AboutBox\gridAboutEwE.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Other\Options\dlgOptions.Designer.vb">
+      <DependentUpon>dlgOptions.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsStatusColors.Designer.vb">
+      <DependentUpon>ucOptionsStatusColors.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsStatusColors.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsGeneral.Designer.vb">
+      <DependentUpon>ucOptionsGeneral.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsGeneral.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridDetritusFate.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputDiscardFate.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputDiscards.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputFleetDefinition.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputLandings.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputOffVesselValue.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputNonMarketPrice.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridOtherProduction.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridBasicEstimates.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridConsumption.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridElectivity.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFisheryOutputCatch.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFisheryOutputValue.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridKeyIndices.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridMortalityCoefficients.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridMortalityPredation.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridNicheOverlapPredator.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridNicheOverlapPrey.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridRespiration.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridSearchRates.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\gridEcosimGroupInput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\frmEcosimParameters.Designer.vb">
+      <DependentUpon>frmEcosimParameters.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\Vulnerabilities\gridVulnerabilities.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Output\frmRunEcosim.Designer.vb">
+      <DependentUpon>frmRunEcosim.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Panels\StatusPanel\frmStatusPanel.Designer.vb">
+      <DependentUpon>frmStatusPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridBasicInput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridDietComposition.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Panels\NavigationPanel\frmNavigationPanel.Designer.vb">
+      <DependentUpon>frmNavigationPanel.vb</DependentUpon>
+    </Compile>
+    <Compile Update="My Project\Settings.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+    <Compile Update="Other\AboutBox\frmAboutEwE.Designer.vb">
+      <DependentUpon>frmAboutEwE.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\dlgScenario.Designer.vb">
+      <DependentUpon>dlgScenario.vb</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="My Project\app.manifest">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Tools\code_for_plotting_dirichlets.R">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\EcoIND2.ico" />
+    <Content Include="Resources\Ecopath40.ico" />
+    <Content Include="Resources\Ecopath666.ico" />
+    <Content Include="Resources\splash_01.png" />
+    <Content Include="Resources\ExtraIcons.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\EcoBase.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\EcoBase.png" />
+    <Content Include="Resources\logo_mgel.png" />
+    <Content Include="Resources\logo_sm.png" />
+    <None Update="Resources\Ecopath2_beta.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Compile Update="Controls\cEwEStatusBar.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\gridResultsBase.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Pedigree\gridDefinePedigree.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Pedigree\dlgDefinePedigree.Designer.vb">
+      <DependentUpon>dlgDefinePedigree.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Taxonomy and traits\gridTaxonSearchResults.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\frmNichePredPreyPlot.Designer.vb">
+      <DependentUpon>frmNichePredPreyPlot.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Output\frmSizeShiftedConnectancePlot.Designer.vb">
+      <DependentUpon>frmSizeShiftedConnectancePlot.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Taxonomy and traits\frmTraitInput.Designer.vb">
+      <DependentUpon>frmTraitInput.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Taxonomy and traits\gridTraitInput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\frmFisheryBasicInput.Designer.vb">
+      <DependentUpon>frmFisheryBasicInput.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Input\gridFisheryInputDiscardMort.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Input\frmBasicInput.Designer.vb">
+      <DependentUpon>frmBasicInput.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Pedigree\frmPedigree.Designer.vb">
+      <DependentUpon>frmPedigree.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Pedigree\gridPedigree.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Tools\Particle Size Distribution\gridGrowthParameters.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridEcopathStatistics.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridFleetFishingMortality.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridPSDGrowthEstimates.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\frmPSDContributionPlot.Designer.vb">
+      <DependentUpon>frmPSDContributionPlot.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Output\gridPSDContributionResult.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecopath\Output\frmPSDPlotByGroup.Designer.vb">
+      <DependentUpon>frmPSDPlotByGroup.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Output\frmRunPSD.Designer.vb">
+      <DependentUpon>frmRunPSD.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecopath\Output\frmSizeWeight.Designer.vb">
+      <DependentUpon>frmSizeWeight.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ApplyGrid\gridApplyLandingsShape.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ApplyGrid\gridApplyPredPreyShape.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\gridApplyShape.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\dlgApplyLandingShape.Designer.vb">
+      <DependentUpon>dlgApplyLandingShape.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\dlgApplyPredPreyShape.Designer.vb">
+      <DependentUpon>dlgApplyPredPreyShape.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\ForcingFunction\frmApplyFFConsumer.Designer.vb">
+      <DependentUpon>frmApplyFFConsumer.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\Mediation\frmApplyMedConsumer.Designer.vb">
+      <DependentUpon>frmApplyMedConsumer.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\ApplyShape\Mediation\frmApplyMedDetritus.Designer.vb">
+      <DependentUpon>frmApplyMedDetritus.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\PriceElasticity\frmPriceElasticity.Designer.vb">
+      <DependentUpon>frmPriceElasticity.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fit to time series\gridFitToTimeSeriesOutput.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucAdvectionMap.Designer.vb">
+      <DependentUpon>ucAdvectionMap.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucAdvectionMap.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucMap.Designer.vb">
+      <DependentUpon>ucMap.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucMap.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucUpwelling.Designer.vb">
+      <DependentUpon>ucUpwelling.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucUpwelling.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\frmAdvection.Designer.vb">
+      <DependentUpon>frmAdvection.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucWind.Designer.vb">
+      <DependentUpon>ucWind.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Advection\ucWind.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\dlgSelectResponse.Designer.vb">
+      <DependentUpon>dlgSelectResponse.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Apply Foraging Responses\frmApplyForagingResponses.Designer.vb">
+      <DependentUpon>frmApplyForagingResponses.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Apply Foraging Responses\gridApplyForagingResponses.Designer.vb">
+      <DependentUpon>gridApplyForagingResponses.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecospace\Input\Capacity\Apply Foraging Responses\gridApplyForagingResponses.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsMainWindow.Designer.vb">
+      <DependentUpon>ucOptionsMainWindow.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsMainWindow.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="MSE\MSEBatch\frmMSERunBatch.Designer.vb">
+      <DependentUpon>frmMSERunBatch.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSERecruitment.Designer.vb">
+      <DependentUpon>frmMSERecruitment.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmGroupRefLevels.Designer.vb">
+      <DependentUpon>frmGroupRefLevels.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmQuotaShare.Designer.vb">
+      <DependentUpon>frmQuotaShare.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmTFMpolicy.Designer.vb">
+      <DependentUpon>frmTFMpolicy.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\gridQuotaShare.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridMSERecruitment.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridRegulatoryOptions.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridTFMpolicy.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\TimeSeries\dlgManageTimeSeries.Designer.vb">
+      <DependentUpon>dlgManageTimeSeries.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\TimeSeries\gridWeightTS.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Input\Vulnerabilities\dlgEstimateVs.Designer.vb">
+      <DependentUpon>dlgEstimateVs.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Input\Vulnerabilities\gridEstimateVs.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Output\gridEcosimResultsIndices.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Output\frmSuitabilityPlot.Designer.vb">
+      <DependentUpon>frmSuitabilityPlot.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\ucSuitabilityPlot.Designer.vb">
+      <DependentUpon>ucSuitabilityPlot.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Ecosim\Output\ucSuitabilityPlot.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Ecosim\Tools\Fit to time series\gridFitToTimeSeriesGroup.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Input\gridDefineEnvDriverMaps.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Ecospace\Tools\gridMPAOptimizations.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Other\Import\Pages\cImportGrid.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Other\Import\dlgImportDatabase.Designer.vb">
+      <DependentUpon>dlgImportDatabase.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageModels.Designer.vb">
+      <DependentUpon>ucImportPageModels.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageModels.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageProgress.Designer.vb">
+      <DependentUpon>ucImportPageProgress.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageProgress.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageWelcome.Designer.vb">
+      <DependentUpon>ucImportPageWelcome.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Import\Pages\ucImportPageWelcome.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPluginAssemblyDetails.Designer.vb">
+      <DependentUpon>ucOptionsPluginAssemblyDetails.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPluginAssemblyDetails.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPluginDetails.Designer.vb">
+      <DependentUpon>ucOptionsPluginDetails.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsPluginDetails.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsGraphsCharts.Designer.vb">
+      <DependentUpon>ucOptionsGraphsCharts.vb</DependentUpon>
+    </Compile>
+    <Compile Update="Other\Options\ucOptionsGraphsCharts.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSEAssessFleets.Designer.vb">
+      <DependentUpon>frmMSEAssessFleets.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSE.Designer.vb">
+      <DependentUpon>frmMSE.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSEAssessGroups.Designer.vb">
+      <DependentUpon>frmMSEAssessGroups.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSEPlots.Designer.vb">
+      <DependentUpon>frmMSEPlots.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSEResults.Designer.vb">
+      <DependentUpon>frmMSEResults.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSEMSY.Designer.vb">
+      <DependentUpon>frmMSEMSY.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\frmMSEOptions.Designer.vb">
+      <DependentUpon>frmMSEOptions.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\gridFleetRefLevels.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridGroupRefLevels.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridFishingCV.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridFixedEscapement.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridRiskResults.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridBioCV.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridFishingWeights.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridRiskBounds.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\gridSelectColorBlock.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="MSE\MSE\ucCVBlockSelector.Designer.vb">
+      <DependentUpon>ucCVBlockSelector.vb</DependentUpon>
+    </Compile>
+    <Compile Update="MSE\MSE\ucCVBlockSelector.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <None Update="Resources\Ecotracer.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Content Include="Resources\logo_EU.jpg" />
+    <Content Include="Resources\logo_FIMR.jpg" />
+    <Content Include="Resources\logo_LENFEST.jpg" />
+    <Content Include="Resources\logo_SAUP.jpg" />
+    <None Update="My Project\Application.myapp">
+      <Generator>MyApplicationCodeGenerator</Generator>
+      <LastGenOutput>Application.Designer.vb</LastGenOutput>
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="UserGuide\EwE6_userguide.chm">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <EmbeddedResource Include="Resources\Ecosim.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Ecospace.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\EwELogo.gif" />
+    <EmbeddedResource Include="Resources\EwELogo_caption.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EwECustomPlugins\EwEAquamapsEnvDataImporterPlugin\EwEAquamapsEnvDataImporterPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEBiomassEmitterPlugin\EwEBiomassEmitterPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEDietMatrixToNetworkD3RPlugin\EwEDietMatrixToNetworkD3RPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEEcoEngineersPlugin\EcoEngineersPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEEcologicalIndicators\EwEEcologicalIndicatorsPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEEcoSamplerPlugin\EwEEcoSamplerPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEEcotracerEnvDriverPlugin\EwEEcotracerEnvDriverPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEenaRPlugin\EwEenaRPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEFleetTradeoffsPlugin\EwEFleetTradeoffsPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEIBMAgeStructureResultsWriter\EwEIBMAgeStructureResultsWriterPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEImportDietsPlugin\EwEImportDietsPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEImportExportLayersPlugin\EwEImportExportLayerDefinitionsPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEMergeSplitGroupsPlugin\EwEMergeSplitGroupsPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEMPADynamicsPlugin\EwEMPADynamicsPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEEcotroph\EwEEcoTrophPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEModelFromEcosimPlugin\EwEModelFromEcosimPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEMSEPlugin\EwEMSEPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEMSPChallengeIntegration\EwEMSPLink\EwEMSPLink.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEMSPChallengeIntegration\EwEMSPPlugin\EwEMSPPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEMultiSimPlugin\EwEMultiSimPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwENetworkAnalysis\EwENetworkAnalysisPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEPrebalPlugin\EwEPrebalPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwERemarksPlugin\EwERemarksPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEResultsExtractorPlugin\EwEResultsExtractorPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEShapeGridPlugin\EwEShapeGridPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEStepwiseFittingPlugin\EwEStepwiseFittingPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwETransectExtractionPlugin\EwETransectExtractionPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEValueChainv2Plugin\EwEValueChainv2Plugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEWindowsIntegrationPlugin\EwEWindowsIntegrationPlugin.vbproj" />
+    <ProjectReference Include="..\EwECustomPlugins\EwEWoRMSPlugin\EwEWoRMSPlugin.vbproj" />
+    <ProjectReference Include="..\ScientificInterfaceShared\ScientificInterfaceShared.vbproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Resources\Ecopath1_doc.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Other\Update\" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- <PackageReference Include="Eii.Ecopath.EcospaceSpinup-net48-Plugin">
+      <Version>0.0.*</Version>
+    </PackageReference> -->
+    <PackageReference Include="Eii.Ecopath.Licence">
+      <Version>1.0.*</Version>
+    </PackageReference>
+    <!-- <PackageReference Include="Eii.Ecopath.SpatialTemporalFramework-net48-Plugin">
+      <Version>0.0.*</Version>
+    </PackageReference> -->
+    <PackageReference Include="Microsoft.Extensions.Logging">
+      <Version>10.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug">
+      <Version>9.0.10</Version>
+    </PackageReference>
+    <PackageReference Include="Serilog">
+      <Version>4.3.0</Version>
+    </PackageReference>
+    <PackageReference Include="Serilog.Enrichers.Thread">
+      <Version>4.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="Serilog.Extensions.Logging">
+      <Version>9.0.2</Version>
+    </PackageReference>
+    <PackageReference Include="Serilog.Sinks.File">
+      <Version>7.0.0</Version>
+    </PackageReference>
+  </ItemGroup>
+</Project>
