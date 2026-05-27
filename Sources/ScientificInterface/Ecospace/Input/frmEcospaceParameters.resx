@@ -1356,6 +1356,45 @@
   <data name="m_hdrSpatialPenalty.Text" xml:space="preserve">
     <value>Spatial effort distribution penalty</value>
   </data>
+  <data name="m_hdrUseOtherModel.Dock" type="System.Windows.Forms.DockStyle, System.Windows.Forms">
+    <value>Top</value>
+  </data>
+  <data name="m_hdrUseOtherModel.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
+  <data name="m_hdrUseOtherModel.Location" type="System.Drawing.Point, System.Drawing">
+    <value>0, 0</value>
+  </data>
+  <data name="m_hdrUseOtherModel.Margin" type="System.Windows.Forms.Padding, System.Windows.Forms">
+    <value>2, 0, 2, 0</value>
+  </data>
+  <data name="m_hdrUseOtherModel.Size" type="System.Drawing.Size, System.Drawing">
+    <value>705, 18</value>
+  </data>
+  <data name="m_hdrUseOtherModel.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="m_hdrUseOtherModel.Text" xml:space="preserve">
+    <value>Use other fishery models </value>
+  </data>
+  <data name="m_Couplage.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="m_Couplage.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value> 
+  </data>
+  <data name="m_Couplage.Location" type="System.Drawing.Point, System.Drawing">
+    <value>10, 19</value>
+  </data>
+  <data name="m_Couplage.Size" type="System.Drawing.Size, System.Drawing">
+    <value>200, 17</value>
+  </data>
+  <data name="m_Couplage.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="m_Couplage.Text" xml:space="preserve">
+    <value>&amp;FIBE</value>
+  </data>
   <data name="m_hdrSpatialPenalty.TextAlign" type="System.Drawing.ContentAlignment, System.Drawing">
     <value>MiddleLeft</value>
   </data>

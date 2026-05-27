@@ -46,7 +46,7 @@ Namespace Ecospace
         Private Sub InitializeComponent()
             Dim m_gbModel As System.Windows.Forms.GroupBox
             Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(frmEcospaceParameters))
-            Me.m_Couplage = New System.Windows.Forms.RadioButton()
+            Me.m_Couplage = New System.Windows.Forms.CheckBox()
             Me.m_rbNewStanzaModel = New System.Windows.Forms.RadioButton()
             Me.m_rbIBM = New System.Windows.Forms.RadioButton()
             Me.m_rbOldSchool = New System.Windows.Forms.RadioButton()
@@ -122,6 +122,8 @@ Namespace Ecospace
             Me.m_lbAdjustEffort = New System.Windows.Forms.Label()
             Me.m_cbUsePenalty = New System.Windows.Forms.CheckBox()
             Me.m_hdrSpatialPenalty = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
+            Me.m_plUseOtherModel = New System.Windows.Forms.Panel()
+            Me.m_hdrUseOtherModel = New ScientificInterfaceShared.Controls.cEwEHeaderLabel()
             m_gbModel = New System.Windows.Forms.GroupBox()
             m_gbModel.SuspendLayout()
             Me.m_tlpModelTop.SuspendLayout()
@@ -140,6 +142,7 @@ Namespace Ecospace
             Me.m_gbAutoSave.SuspendLayout()
             Me.m_plTimeSeries.SuspendLayout()
             Me.m_plEffortDistr.SuspendLayout()
+            Me.m_plUseOtherModel.SuspendLayout()
             Me.SuspendLayout()
             '
             'm_gbModel
@@ -147,7 +150,6 @@ Namespace Ecospace
             m_gbModel.Controls.Add(Me.m_rbNewStanzaModel)
             m_gbModel.Controls.Add(Me.m_rbIBM)
             m_gbModel.Controls.Add(Me.m_rbOldSchool)
-            m_gbModel.Controls.Add(CType(Me.m_Couplage, Control))
             resources.ApplyResources(m_gbModel, "m_gbModel")
             m_gbModel.Name = "m_gbModel"
             m_gbModel.TabStop = False
@@ -159,13 +161,6 @@ Namespace Ecospace
             Me.m_rbNewStanzaModel.Name = "m_rbNewStanzaModel"
             Me.m_rbNewStanzaModel.TabStop = True
             Me.m_rbNewStanzaModel.UseVisualStyleBackColor = True
-            '
-            'm_Couplage
-            '
-            resources.ApplyResources(Me.m_Couplage, "m_Couplage")
-            'Me.m_Couplage.Checked = True
-            Me.m_Couplage.Name = "m_Couplage"
-            Me.m_Couplage.UseVisualStyleBackColor = True
             '
             'm_rbIBM
             '
@@ -482,6 +477,7 @@ Namespace Ecospace
             Me.m_tlpStuff.Controls.Add(Me.m_plModel, 0, 2)
             Me.m_tlpStuff.Controls.Add(Me.m_plTimeSeries, 0, 3)
             Me.m_tlpStuff.Controls.Add(Me.m_plEffortDistr, 0, 4)
+            Me.m_tlpStuff.Controls.Add(Me.m_plUseOtherModel, 0, 5)
             Me.m_tlpStuff.Name = "m_tlpStuff"
             '
             'm_plScenario
@@ -667,6 +663,28 @@ Namespace Ecospace
             Me.m_hdrSpatialPenalty.IsCollapsed = False
             Me.m_hdrSpatialPenalty.Name = "m_hdrSpatialPenalty"
             '
+            'm_plUseOtherModel
+            '
+            resources.ApplyResources(Me.m_plUseOtherModel, "m_plUseOtherModel")
+            Me.m_plUseOtherModel.Controls.Add(Me.m_hdrUseOtherModel)
+            Me.m_plUseOtherModel.Controls.Add(Me.m_Couplage)
+            Me.m_plUseOtherModel.Name = "m_plUseOtherModel"
+            '
+            'm_hdrUseOtherModel
+            '
+            Me.m_hdrUseOtherModel.CanCollapseParent = True
+            Me.m_hdrUseOtherModel.CollapsedParentHeight = 0
+            resources.ApplyResources(Me.m_hdrUseOtherModel, "m_hdrUseOtherModel")
+            Me.m_hdrUseOtherModel.IsCollapsed = False
+            Me.m_hdrUseOtherModel.Name = "m_hdrUseOtherModel"
+            '
+            'm_Couplage
+            '
+            resources.ApplyResources(Me.m_Couplage, "m_Couplage")
+            'Me.m_Couplage.Checked = True
+            Me.m_Couplage.Name = "m_Couplage"
+            Me.m_Couplage.UseVisualStyleBackColor = True
+            '
             'frmEcospaceParameters
             '
             Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit
@@ -701,6 +719,8 @@ Namespace Ecospace
             Me.m_plTimeSeries.PerformLayout()
             Me.m_plEffortDistr.ResumeLayout(False)
             Me.m_plEffortDistr.PerformLayout()
+            Me.m_plUseOtherModel.ResumeLayout(False)
+            Me.m_plUseOtherModel.PerformLayout()
             Me.ResumeLayout(False)
 
         End Sub
@@ -769,6 +789,8 @@ Namespace Ecospace
         Private WithEvents m_tbxMinCap As TextBox
         Private WithEvents m_plEffortDistr As Panel
         Private WithEvents m_hdrSpatialPenalty As cEwEHeaderLabel
+        Private WithEvents m_plUseOtherModel As Panel
+        Private WithEvents m_hdrUseOtherModel As cEwEHeaderLabel
         Private WithEvents m_cbUsePenalty As CheckBox
         Private WithEvents m_lbPenPow As Label
         Private WithEvents m_tbEffortAdjustWeight As TextBox
@@ -779,7 +801,7 @@ Namespace Ecospace
         Private WithEvents m_lbFirstMonthPen As Label
         Private WithEvents m_tbPredEffortRelax As TextBox
         Private WithEvents m_lbEffortRelax As Label
-        Private WithEvents m_Couplage As System.Windows.Forms.RadioButton
+        Private WithEvents m_Couplage As CheckBox
     End Class
 
 End Namespace
