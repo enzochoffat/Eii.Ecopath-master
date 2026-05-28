@@ -24,6 +24,9 @@ Option Strict On
 Imports EwECore
 Imports EwEUtils.Core
 Imports EwEUtils.SystemUtilities
+Imports System.Globalization
+Imports System.Diagnostics
+Imports System.IO
 Imports ScientificInterfaceShared.Commands
 Imports SharedResources = ScientificInterfaceShared.My.Resources
 
@@ -175,11 +178,19 @@ Namespace Ecospace
 
             Me.UpdateControls()
 
+            If (Me.Core IsNot Nothing) Then
+                Me.Core.AddEcospaceTimeStepHandler(AddressOf Me.OnEcospaceTimeStep)
+            End If
+
         End Sub
 
         Protected Overrides Sub OnFormClosed(e As System.Windows.Forms.FormClosedEventArgs)
 
             Try
+
+                If (Me.Core IsNot Nothing) Then
+                    Me.Core.RemoveEcospaceTimeStepHandler(AddressOf Me.OnEcospaceTimeStep)
+                End If
 
                 Me.m_bpUseIBM = Nothing
                 Me.m_bpUseNewStanza = Nothing
@@ -468,6 +479,80 @@ Namespace Ecospace
 
         End Sub
 
+        Private Sub OnEcospaceTimeStep(ByRef ts As cEcospaceTimestep)
+
+            If (ts Is Nothing) Then Return
+            If (Not Me.m_Couplage.Checked) Then Return
+
+            Dim map As Single(,,) = ts.BiomassMap()
+            Dim baseDir As String = AppDomain.CurrentDomain.BaseDirectory
+            Dim targetFolder As String = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "..", "Couplage", "Data"))
+            If Not Directory.Exists(targetFolder) Then
+                Directory.CreateDirectory(targetFolder)
+            End If
+            Dim fileName As String = Path.Combine(targetFolder, "EcospaceBiomassMap.txt")
+
+            Me.SaveBiomassMapToTxt(map, fileName)
+
+        End Sub
+
+        Private Sub SaveBiomassMapToTxt(map As Single(,,), fileName As String)
+
+            Using writer As New StreamWriter(fileName, False)
+                writer.WriteLine("row;col;group;biomass")
+
+                Dim rowFirst As Integer = map.GetLowerBound(0)
+                Dim rowLast As Integer = map.GetUpperBound(0)
+                Dim colFirst As Integer = map.GetLowerBound(1)
+                Dim colLast As Integer = map.GetUpperBound(1)
+                Dim groupFirst As Integer = map.GetLowerBound(2)
+                Dim groupLast As Integer = map.GetUpperBound(2)
+
+                For row As Integer = rowFirst To rowLast
+                    For col As Integer = colFirst To colLast
+                        For group As Integer = groupFirst To groupLast
+                            writer.WriteLine(String.Format(CultureInfo.InvariantCulture, "{0};{1};{2};{3}", row, col, group, map(row, col, group)))
+                        Next
+                    Next
+                Next
+            End Using
+
+            Me.RunPostSaveScript(fileName)
+
+        End Sub
+
+        Private Sub RunPostSaveScript(fileName As String)
+
+            Dim scriptPath As String = Path.Combine(Path.GetDirectoryName(fileName), "post_save.ps1")
+
+            Using writer As New StreamWriter(scriptPath, False)
+                writer.WriteLine("param(")
+                writer.WriteLine("    [Parameter(Mandatory = $true)]")
+                writer.WriteLine("    [string]$InputFile")
+                writer.WriteLine(")")
+                writer.WriteLine("")
+                writer.WriteLine("$scriptDir = $PSScriptRoot")
+                writer.WriteLine("$filePath = Join-Path $scriptDir $InputFile")
+                writer.WriteLine("Write-Host ""Post save script running for file: $InputFile""")
+                writer.WriteLine("")
+                writer.WriteLine("$pythonScript = Join-Path (Split-Path $scriptDir -Parent) ""FIBE.py""")
+                writer.WriteLine("python $pythonScript $InputFile")
+                writer.WriteLine("")
+                writer.WriteLine("Write-Host ""File processed: $InputFile""")
+            End Using
+
+            Dim psi As New ProcessStartInfo()
+            psi.FileName = "powershell.exe"
+            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}""", scriptPath, fileName)
+            psi.UseShellExecute = True
+            psi.CreateNoWindow = True
+            psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)
+
+            Process.Start(psi)
+
+
+        End Sub
+
 #End Region ' Control events
 
 #Region " Overrides "
@@ -503,5 +588,4 @@ Namespace Ecospace
 #End Region ' Internals
 
     End Class
-
 End Namespace
