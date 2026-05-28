@@ -681,7 +681,7 @@ Namespace Ecospace
             'm_Couplage
             '
             resources.ApplyResources(Me.m_Couplage, "m_Couplage")
-            'Me.m_Couplage.Checked = True
+            Me.m_Couplage.Checked = True
             Me.m_Couplage.Name = "m_Couplage"
             Me.m_Couplage.UseVisualStyleBackColor = True
             '

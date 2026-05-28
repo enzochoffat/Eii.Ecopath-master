@@ -551,6 +551,7 @@ Public Class cEcospaceDataStructures
     Public NewMultiStanza As Boolean, IFDPower As Single
     Public ByPassIntegrate() As Boolean
 
+    Public UseOtherModel As Boolean
     Public UseIBM As Boolean
     Public UseExact As Boolean
 

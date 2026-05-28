@@ -90,6 +90,10 @@ Namespace Ecospace
         Private m_fpFirstOutputTimestep As cEwEFormatProvider = Nothing
         Private m_fpAutosaveVisibleGroupsFleetsOnly As cEwEFormatProvider = Nothing
 
+        'Use other model
+        Private WithEvents m_bpUseOtherModel As cBooleanProperty = Nothing
+        Private m_fpUseOtherModel As cEwEFormatProvider = Nothing
+
 #End Region ' Private vars
 
 #Region " Form events "
@@ -126,6 +130,9 @@ Namespace Ecospace
 
             Me.m_bpUseDiscardForcing = DirectCast(propMan.GetProperty(parms, eVarNameFlags.EcospaceUseEcosimDiscardForcing), cBooleanProperty)
             Me.m_fpUseDiscardForcing = New cPropertyFormatProvider(Me.UIContext, Me.m_cbUseEcosimDiscardForcing, Me.m_bpUseDiscardForcing)
+
+            Me.m_bpUseOtherModel = DirectCast(propMan.GetProperty(parms, eVarNameFlags.UseOtherModel), cBooleanProperty)
+            Me.m_fpUseOtherModel = New cPropertyFormatProvider(Me.UIContext, Me.m_Couplage, Me.m_bpUseOtherModel)
 
             Me.m_clbAutosave.Items.Clear()
             For n As Integer = 1 To parms.nResultWriters
@@ -210,6 +217,9 @@ Namespace Ecospace
 
                 Me.m_fpFirstOutputTimestep.Release()
                 Me.m_fpAutosaveVisibleGroupsFleetsOnly.Release()
+
+                Me.m_fpUseOtherModel.Release()
+
 
             Catch ex As Exception
 
@@ -442,6 +452,18 @@ Namespace Ecospace
             dlgSave.FileName = IO.Path.GetFileName(manager.OutputFileName)
             If dlgSave.ShowDialog = System.Windows.Forms.DialogResult.OK Then
                 manager.OutputFileName = dlgSave.FileName
+            End If
+
+        End Sub
+
+        Private Sub OnUseOtherModelCheckedChanged(sender As Object, e As EventArgs) Handles m_Couplage.CheckedChanged
+
+            If (Me.UIContext Is Nothing) Then Return
+            If (Me.m_bInUpdate) Then Return
+            Console.WriteLine("Use other model: " & Me.m_Couplage.Checked)
+
+            If (Me.m_bpUseOtherModel IsNot Nothing) Then
+                Me.m_bpUseOtherModel.SetValue(Me.m_Couplage.Checked)
             End If
 
         End Sub

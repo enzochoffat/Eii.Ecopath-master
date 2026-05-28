@@ -10764,6 +10764,7 @@ Public Class cCore
             m_EcospaceModelParams.nEffortDistThreads = m_EcospaceData.nEffortDistThreads
 
             m_EcospaceModelParams.IFDPower = m_EcospaceData.IFDPower
+            m_EcospaceModelParams.UseOtherModel = m_EcospaceData.UseOtherModel
             m_EcospaceModelParams.UseIBM = m_EcospaceData.UseIBM
             m_EcospaceModelParams.UseNewMultiStanza = m_EcospaceData.NewMultiStanza
             m_EcospaceModelParams.TotalTime = CInt(m_EcospaceData.TotalTime)
@@ -10847,6 +10848,7 @@ Public Class cCore
         m_EcospaceData.nIBMMovementSolverThreads = m_EcospaceModelParams.nIBMMovementThreads
 
         m_EcospaceData.IFDPower = m_EcospaceModelParams.IFDPower
+        m_EcospaceData.UseOtherModel = m_EcospaceModelParams.UseOtherModel
         m_EcospaceData.UseIBM = m_EcospaceModelParams.UseIBM
         m_EcospaceData.NewMultiStanza = m_EcospaceModelParams.UseNewMultiStanza
         m_EcospaceData.TotalTime = m_EcospaceModelParams.TotalTime

@@ -420,6 +420,7 @@ Public Class cVariableMetaData
         Me.Metadata(eVarNameFlags.EcospaceNumberSummaryTimeSteps) = New cVariableMetaData(1, Single.MaxValue, gt, lt)
         Me.Metadata(eVarNameFlags.UseNewMultiStanza) = New cVariableMetaData(False)
         Me.Metadata(eVarNameFlags.UseIBM) = New cVariableMetaData(False)
+        Me.Metadata(eVarNameFlags.UseOtherModel) = New cVariableMetaData(False)
         Me.Metadata(eVarNameFlags.EcospaceIBMMovePacketOnStanza) = New cVariableMetaData(False)
         Me.Metadata(eVarNameFlags.IFDPower) = New cVariableMetaData(0, Single.MaxValue, gt, lt, 0.5)
         Me.Metadata(eVarNameFlags.EcospaceUseCoreOutputDir) = New cVariableMetaData(True)

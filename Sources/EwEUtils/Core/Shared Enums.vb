@@ -83,6 +83,7 @@ Namespace Core
 
         ''' <summary>Variable name is not specified</summary>
         NotSet
+
         ''' <summary>Production over Biomass (ratio)</summary>
         ''' <remarks>Also referred to as Mortality or Z.</remarks>
         PBInput
@@ -689,6 +690,8 @@ Namespace Core
         EcospaceSaveThreadingLog
 
 
+        UseOtherModel
+        ''' <summary>Use other fishery model</summary>
         IFDPower
         ''' <summary>To document</summary>
         UseIBM

@@ -169,6 +169,9 @@ Public Class cEcospaceModelParameters
             val = New cValue(core, 0.5, eVarNameFlags.IFDPower, eStatusFlags.Null, eValueTypes.Sng)
             Me.m_values.Add(val.varName, val)
 
+            val = New cValue(core, 0, eVarNameFlags.UseOtherModel, eStatusFlags.Null, eValueTypes.Bool)
+            Me.m_values.Add(val.varName, val)
+
             val = New cValue(core, 1, eVarNameFlags.EcospaceIBMMovePacketOnStanza, eStatusFlags.Null, eValueTypes.Bool)
             Me.m_values.Add(val.varName, val)
 
@@ -484,6 +487,15 @@ Public Class cEcospaceModelParameters
         End Get
         Set(value As Single)
             Me.SetVariable(eVarNameFlags.IFDPower, value)
+        End Set
+    End Property
+
+    Public Property UseOtherModel() As Boolean
+        Get
+            Return CBool(Me.GetVariable(eVarNameFlags.UseOtherModel))
+        End Get
+        Set(value As Boolean)
+            Me.SetVariable(eVarNameFlags.UseOtherModel, value)
         End Set
     End Property
 
