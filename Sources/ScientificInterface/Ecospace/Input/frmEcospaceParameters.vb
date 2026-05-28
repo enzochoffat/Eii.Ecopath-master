@@ -532,6 +532,7 @@ Namespace Ecospace
                 writer.WriteLine(")")
                 writer.WriteLine("")
                 writer.WriteLine("$scriptDir = $PSScriptRoot")
+                writer.WriteLine("New-Item -Path (Split-Path $scriptDir -Parent) -Name ""CSV"" -ItemType Directory -Force")
                 writer.WriteLine("$filePath = Join-Path $scriptDir $InputFile")
                 writer.WriteLine("Write-Host ""Post save script running for file: $InputFile""")
                 writer.WriteLine("")
@@ -548,7 +549,10 @@ Namespace Ecospace
             psi.CreateNoWindow = True
             psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)
 
-            Process.Start(psi)
+            Dim p As Process = Process.Start(psi)
+            p.WaitForExit()
+            Dim exitCode As Integer = p.ExitCode
+            Console.WriteLine("Post save script exited with code: " & exitCode)
 
 
         End Sub
