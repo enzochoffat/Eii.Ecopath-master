@@ -517,8 +517,47 @@ Namespace Ecospace
                 Next
             End Using
 
+            Me.RunInstallScript(fileName)
             Me.RunPostSaveScript(fileName)
 
+        End Sub
+
+        Private Sub RunInstallScript(fileName As String)
+
+            Dim scriptInstallPath As String = Path.Combine(Path.GetDirectoryName(fileName), "install.ps1")
+
+            Using writer As New StreamWriter(scriptInstallPath, False)
+                writer.WriteLine("")
+                writer.WriteLine("$scriptDir = $PSScriptRoot")
+                writer.WriteLine("$scriptDirParent = (Get-Item $scriptDir).Parent.FullName")
+                writer.WriteLine("$fibePath = Join-Path $scriptDirParent ""FIBE\diatome""")
+
+                writer.WriteLine("if (Test-Path $fibePath) {")
+                writer.WriteLine("    exit")
+                writer.WriteLine("} else {")
+                writer.WriteLine("    $fibeParent = Join-Path $scriptDirParent ""FIBE""")
+                writer.WriteLine("    if (-not (Test-Path $fibeParent)) {")
+                writer.WriteLine("        New-Item -Path $fibeParent -ItemType Directory -Force | Out-Null")
+                writer.WriteLine("    }")
+                writer.WriteLine("    Set-Location $fibeParent")
+                writer.WriteLine("    git clone https://github.com/enzochoffat/diatome.git")
+                writer.WriteLine("}")
+
+            End Using
+
+            Dim psi As New ProcessStartInfo()
+            psi.FileName = "powershell.exe"
+            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}""", scriptInstallPath)
+            psi.UseShellExecute = True
+            psi.CreateNoWindow = True
+            psi.WorkingDirectory = Path.GetDirectoryName(scriptInstallPath)
+
+            Dim p As Process = Process.Start(psi)
+            p.WaitForExit()
+            Dim exitCode As Integer = p.ExitCode
+            Console.WriteLine("Post save script exited with code: " & exitCode)
+
+        
         End Sub
 
         Private Sub RunPostSaveScript(fileName As String)
