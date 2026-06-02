@@ -491,8 +491,12 @@ Namespace Ecospace
                 Directory.CreateDirectory(targetFolder)
             End If
             Dim fileName As String = Path.Combine(targetFolder, "EcospaceBiomassMap.txt")
-
+            
+            If ts.iTimeStep = 1 Then
+                Me.SaveStaticMaps(targetFolder)
+            End If
             Me.SaveBiomassMapToTxt(map, fileName)
+
 
         End Sub
 
@@ -522,6 +526,87 @@ Namespace Ecospace
 
         End Sub
 
+        Private Sub SaveStaticMaps(targetFolder As String)
+
+            Dim bm As cEcospaceBasemap = Me.Core.EcospaceBasemap
+
+            Try
+                Dim targetFolderDepth As String = Path.GetFullPath(Path.Combine(targetFolder, "Depth"))
+                If Not Directory.Exists(targetFolderDepth) Then
+                    Directory.CreateDirectory(targetFolderDepth)
+                End If
+                Dim depth As cEcospaceLayerDepth = bm.LayerDepth
+                Using w As New StreamWriter(Path.Combine(targetFolderDepth, "Depth.txt"), False)
+                    w.WriteLine("row;col;depth")
+                    For r As Integer = 1 To bm.InRow
+                        For c As Integer = 1 To bm.InCol
+                            If bm.IsModelledCell(r, c) Then
+                                Dim v As Single = CSng(depth.Cell(r, c))
+                                w.WriteLine(String.Format(CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, v))
+                            End If
+                        Next
+                    Next
+                End Using
+            Catch ex As Exception
+                Debug.WriteLine("SaveStaticMaps Depth error: " & ex.Message)
+            End Try
+
+            Try
+                Dim targetFolderPorts As String = Path.GetFullPath(Path.Combine(targetFolder, "Ports"))
+                If Not Directory.Exists(targetFolderPorts) Then
+                    Directory.CreateDirectory(targetFolderPorts)
+                End If
+                Dim portsAll As cEcospaceLayerPort = bm.LayerPort(0)
+                Using w As New StreamWriter(Path.Combine(targetFolderPorts, "Ports_AllFleets.txt"), False)
+                    w.WriteLine("row;col;port")
+                    For r As Integer = 1 To bm.InRow
+                        For c As Integer = 1 To bm.InCol
+                            If bm.IsModelledCell(r, c) Then
+                                Dim hasPort As Boolean = CBool(portsAll.Cell(r, c))
+                                w.WriteLine(String.Format("{0};{1};{2}", r, c, If(hasPort, 1, 0)))
+                            End If
+                        Next
+                    Next
+                End Using
+            Catch ex As Exception
+                Debug.WriteLine("SaveStaticMaps Ports error: " & ex.Message)
+            End Try
+
+            Try
+                Dim targetFolderHabitats As String = Path.GetFullPath(Path.Combine(targetFolder, "Habitats"))
+                If Not Directory.Exists(targetFolderHabitats) Then
+                    Directory.CreateDirectory(targetFolderHabitats)
+                End If
+                Dim noHab As Integer = Math.Max(0, Me.Core.EcospaceDataStructures.NoHabitats - 1)
+                For ih As Integer = 1 To noHab
+                    Dim hab As cEcospaceLayerHabitat = bm.LayerHabitat(ih)
+                    Dim habName As String = ""
+                    Try
+                        habName = Me.Core.EcospaceHabitats(ih).Name
+                    Catch
+                        habName = "Hab" & ih
+                    End Try
+                    Dim safeName As String = String.Join("_", habName.Split(Path.GetInvalidFileNameChars()))
+                    Using w As New StreamWriter(Path.Combine(targetFolderHabitats, "Habitat_" & ih & "_" & safeName & ".txt"), False)
+                        w.WriteLine("row;col;value")
+                        For r As Integer = 1 To bm.InRow
+                            For c As Integer = 1 To bm.InCol
+                                If bm.IsModelledCell(r, c) Then
+                                    Dim v As Single = CSng(hab.Cell(r, c))
+                                    w.WriteLine(String.Format(CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, v))
+                                End If
+                            Next
+                        Next
+                    End Using
+                Next
+            Catch ex As Exception
+                Debug.WriteLine("SaveStaticMaps Habitats error: " & ex.Message)
+            End Try
+
+        End Sub
+
+
+
         Private Sub RunInstallScript(fileName As String)
 
             Dim scriptInstallPath As String = Path.Combine(Path.GetDirectoryName(fileName), "install.ps1")
@@ -541,6 +626,10 @@ Namespace Ecospace
                 writer.WriteLine("    }")
                 writer.WriteLine("    Set-Location $fibeParent")
                 writer.WriteLine("    git clone https://github.com/enzochoffat/diatome.git")
+                writer.WriteLine("    Set-Location $fibePath")
+                writer.WriteLine("    python -m venv venv")
+                writer.WriteLine("    .\venv\Scripts\Activate.ps1")
+                writer.WriteLine("    pip install -r requirement.txt")
                 writer.WriteLine("}")
 
             End Using
@@ -557,7 +646,7 @@ Namespace Ecospace
             Dim exitCode As Integer = p.ExitCode
             Console.WriteLine("Post save script exited with code: " & exitCode)
 
-        
+
         End Sub
 
         Private Sub RunPostSaveScript(fileName As String)
@@ -571,14 +660,29 @@ Namespace Ecospace
                 writer.WriteLine(")")
                 writer.WriteLine("")
                 writer.WriteLine("$scriptDir = $PSScriptRoot")
-                writer.WriteLine("New-Item -Path (Split-Path $scriptDir -Parent) -Name ""CSV"" -ItemType Directory -Force")
+                writer.WriteLine("New-Item -Path (Split-Path $scriptDir) -Name ""Biomass"" -ItemType Directory -Force")
                 writer.WriteLine("$filePath = Join-Path $scriptDir $InputFile")
                 writer.WriteLine("Write-Host ""Post save script running for file: $InputFile""")
                 writer.WriteLine("")
                 writer.WriteLine("$pythonScript = Join-Path (Split-Path $scriptDir -Parent) ""FIBE.py""")
                 writer.WriteLine("python $pythonScript $InputFile")
+                writer.WriteLine("$pythonScript = Join-Path (Split-Path $scriptDir -Parent) ""Convert_static_map.py""")
+                writer.WriteLine("Write-Host ""Script processed: $pythonScript""")
+                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Data\Depth""")
+                writer.WriteLine("Write-Host ""File processed: $InputFile""")
+                writer.WriteLine("python $pythonScript $InputFile")
+                writer.WriteLine("")
+                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Data\Ports""")
+                writer.WriteLine("python $pythonScript $InputFile")
+                writer.WriteLine("")
+                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Data\Habitats""")
+                writer.WriteLine("python $pythonScript $InputFile")
                 writer.WriteLine("")
                 writer.WriteLine("Write-Host ""File processed: $InputFile""")
+                writer.WriteLine(".\..\CreateJSON.ps1")
+                writer.WriteLine("cd ..\FIBE\diatome")
+                writer.WriteLine(".\venv\Scripts\Activate.ps1")
+                writer.WriteLine("python .\scripts\run_simulation.py .\configs\config.json")
             End Using
 
             Dim psi As New ProcessStartInfo()
@@ -595,6 +699,9 @@ Namespace Ecospace
 
 
         End Sub
+
+
+
 
 #End Region ' Control events
 
