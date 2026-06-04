@@ -1,5 +1,5 @@
 $scriptDir = $PSScriptRoot
-$databasePath = Join-Path $scriptDir "Biomass"
+$databasePath = Join-Path $scriptDir "Data\Biomass"
 $jsonPath = Join-Path $scriptDir "FIBE\diatome\configs\config_default.json"
 $newFile = Join-Path $scriptDir "FIBE\diatome\configs\config.json" 
 

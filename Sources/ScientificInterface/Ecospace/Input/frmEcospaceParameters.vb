@@ -487,11 +487,15 @@ Namespace Ecospace
             Dim map As Single(,,) = ts.BiomassMap()
             Dim baseDir As String = AppDomain.CurrentDomain.BaseDirectory
             Dim targetFolder As String = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "..", "Couplage", "Data"))
+            Dim targetBiomassFolder As String = Path.GetFullPath(Path.Combine(targetFolder, "Biomass"))
             If Not Directory.Exists(targetFolder) Then
                 Directory.CreateDirectory(targetFolder)
             End If
-            Dim fileName As String = Path.Combine(targetFolder, "EcospaceBiomassMap.txt")
-            
+            If Not Directory.Exists(targetBiomassFolder) Then
+                Directory.CreateDirectory(targetBiomassFolder)
+            End If
+            Dim fileName As String = Path.Combine(targetBiomassFolder, "EcospaceBiomassMap.txt")
+
             If ts.iTimeStep = 1 Then
                 Me.SaveStaticMaps(targetFolder)
             End If
@@ -614,7 +618,7 @@ Namespace Ecospace
             Using writer As New StreamWriter(scriptInstallPath, False)
                 writer.WriteLine("")
                 writer.WriteLine("$scriptDir = $PSScriptRoot")
-                writer.WriteLine("$scriptDirParent = (Get-Item $scriptDir).Parent.FullName")
+                writer.WriteLine("$scriptDirParent = (Get-Item $scriptDir).Parent.Parent.FullName")
                 writer.WriteLine("$fibePath = Join-Path $scriptDirParent ""FIBE\diatome""")
 
                 writer.WriteLine("if (Test-Path $fibePath) {")
@@ -664,23 +668,27 @@ Namespace Ecospace
                 writer.WriteLine("$filePath = Join-Path $scriptDir $InputFile")
                 writer.WriteLine("Write-Host ""Post save script running for file: $InputFile""")
                 writer.WriteLine("")
-                writer.WriteLine("$pythonScript = Join-Path (Split-Path $scriptDir -Parent) ""FIBE.py""")
+                writer.WriteLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent) -Parent")
+                writer.WriteLine("$pythonScript = Join-Path $parentDir ""FIBE.py""")
+                writer.WriteLine("Write-Host ""Post save script running for file: $pythonScript""")
                 writer.WriteLine("python $pythonScript $InputFile")
-                writer.WriteLine("$pythonScript = Join-Path (Split-Path $scriptDir -Parent) ""Convert_static_map.py""")
+                writer.WriteLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent ) -Parent ")
+                writer.WriteLine("$pythonScript = Join-Path $parentDir ""Convert_static_map.py""")
                 writer.WriteLine("Write-Host ""Script processed: $pythonScript""")
-                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Data\Depth""")
+                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Depth""")
                 writer.WriteLine("Write-Host ""File processed: $InputFile""")
                 writer.WriteLine("python $pythonScript $InputFile")
                 writer.WriteLine("")
-                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Data\Ports""")
+                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Ports""")
                 writer.WriteLine("python $pythonScript $InputFile")
                 writer.WriteLine("")
-                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Data\Habitats""")
+                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Habitats""")
                 writer.WriteLine("python $pythonScript $InputFile")
                 writer.WriteLine("")
                 writer.WriteLine("Write-Host ""File processed: $InputFile""")
-                writer.WriteLine(".\..\CreateJSON.ps1")
-                writer.WriteLine("cd ..\FIBE\diatome")
+                writer.WriteLine("dir")
+                writer.WriteLine(".\..\..\CreateJSON.ps1")
+                writer.WriteLine("cd ..\..\FIBE\diatome")
                 writer.WriteLine(".\venv\Scripts\Activate.ps1")
                 writer.WriteLine("python .\scripts\run_simulation.py .\configs\config.json")
             End Using
