@@ -4,7 +4,12 @@ from pathlib import Path
 
 def convert_static_map(file_path):
     file_path = Path(file_path)
-    output_path = file_path.with_suffix(".csv")
+    fileName = file_path.stem
+    fileName = fileName.replace(" ", "_")
+    print(f"File Name: {fileName}")
+    csv_file_path = file_path.with_name(fileName + file_path.suffix)
+    print(f"Renamed File Path: {file_path}")
+    output_path = csv_file_path.with_suffix(".csv")
 
     with open(file_path, "r", newline="") as f_in, open(output_path, "w", newline="") as f_out:
         writer = csv.writer(f_out)
