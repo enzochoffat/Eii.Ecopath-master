@@ -1,8 +1,31 @@
+from collections import defaultdict
 import sys
 import csv
 from pathlib import Path
 
+def read_map(file_path):
+    data = defaultdict(lambda: defaultdict(float))
+    with open(file_path, "r", newline="") as f:
+        for line_number, line in enumerate(f):
+            if line.startswith("row"):
+                continue
+
+            parts = line.rstrip("\n").split(";")
+            if len(parts) < 3:
+                print(f"Skipping line {line_number}: {line}")
+                continue
+
+            row = int(parts[0])
+            col = int(parts[1])
+            value = float(parts[2])
+            data[row][col] = value
+    return data
+
 def convert_static_map(file_path):
+    data = read_map(file_path)
+    all_rows = sorted(data.keys())
+    all_cols = sorted({col for row_data in data.values() for col in row_data.keys()})
+
     file_path = Path(file_path)
     fileName = file_path.stem
     fileName = fileName.replace(" ", "_")
@@ -11,28 +34,19 @@ def convert_static_map(file_path):
     print(f"Renamed File Path: {file_path}")
     output_path = csv_file_path.with_suffix(".csv")
 
-    with open(file_path, "r", newline="") as f_in, open(output_path, "w", newline="") as f_out:
-        writer = csv.writer(f_out)
+    with open(output_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([""] + [str(col) for col in all_cols])
 
-        first_data_written = False
-        for line_number, line in enumerate(f_in):
-            if line_number == 0 and line.startswith("row"):
-                continue
+        for row in all_rows:
+            row_data = [str(row)]
+            row_values = data[row]
+            for col in all_cols:
+                value = row_values.get(col, 0.0)
+                row_data.append("0" if abs(value) < 1e-10 else value)
+            writer.writerow(row_data)
 
-            parts = line.rstrip("\n").split(";")
-            if len(parts) < 4:
-                continue
-
-            row = int(parts[0])
-            col = int(parts[1])
-            value = float(parts[2])
-
-            if not first_data_written:
-                writer.writerow([file_path.stem])
-                writer.writerow(["", col])
-                first_data_written = True
-
-            writer.writerow([row, value])
+        
 
 def convert_static_maps(directory):
     directory = Path(directory)
