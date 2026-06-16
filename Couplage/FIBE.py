@@ -8,19 +8,25 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 def parse_biomass_map(biomass_map_path):
     species_data = defaultdict(lambda: defaultdict(dict))
 
-    with open(biomass_map_path, "r", newline="") as f:
-        for line_number, line in enumerate(f):
-            if line_number == 0 and line.startswith("row"):
+    with open(biomass_map_path, "r", encoding="utf-8") as f:
+        for line_number, line in enumerate(f): 
+            clean_line = line.strip()
+
+            if line_number == 0 and clean_line.startswith("row"):
+                continue
+            
+            if not clean_line:
                 continue
 
-            parts = line.rstrip("\n").split(";")
+            parts = clean_line.split(";")
             if len(parts) < 4:
                 continue
 
             row = int(parts[0])
             col = int(parts[1])
             species = parts[2]
-            biomass = float(parts[3])
+            biomass_str = parts[3].replace(",", ".")
+            biomass = float(biomass_str)
 
             species_data[species][row][col] = biomass
 

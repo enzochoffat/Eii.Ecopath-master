@@ -495,38 +495,66 @@ Namespace Ecospace
                 Directory.CreateDirectory(targetBiomassFolder)
             End If
             Dim fileName As String = Path.Combine(targetBiomassFolder, "EcospaceBiomassMap.txt")
-
+            
             If ts.iTimeStep = 1 Then
                 Me.SaveStaticMaps(targetFolder)
             End If
-            Me.SaveBiomassMapToTxt(map, fileName)
+            Me.SaveBiomassMapToTxt(map, fileName, ts)
 
 
         End Sub
 
-        Private Sub SaveBiomassMapToTxt(map As Single(,,), fileName As String)
+        Private Sub SaveBiomassMapToTxt(map As Single(,,), fileName As String, ByRef ts As cEcospaceTimestep)
 
-            Using writer As New StreamWriter(fileName, False)
-                writer.WriteLine("row;col;group;biomass")
+            Dim sb As New System.Text.StringBuilder()
+            sb.AppendLine("row;col;group;biomass")
 
-                Dim rowFirst As Integer = map.GetLowerBound(0)
-                Dim rowLast As Integer = map.GetUpperBound(0)
-                Dim colFirst As Integer = map.GetLowerBound(1)
-                Dim colLast As Integer = map.GetUpperBound(1)
-                Dim groupFirst As Integer = map.GetLowerBound(2)
-                Dim groupLast As Integer = map.GetUpperBound(2)
+            Dim rowFirst As Integer = map.GetLowerBound(0)
+            Dim rowLast As Integer = map.GetUpperBound(0)
+            Dim colFirst As Integer = map.GetLowerBound(1)
+            Dim colLast As Integer = map.GetUpperBound(1)
+            Dim groupFirst As Integer = map.GetLowerBound(2)
+            Dim groupLast As Integer = map.GetUpperBound(2)
 
-                For row As Integer = rowFirst To rowLast
-                    For col As Integer = colFirst To colLast
-                        For group As Integer = groupFirst To groupLast
-                            writer.WriteLine(String.Format(CultureInfo.InvariantCulture, "{0};{1};{2};{3}", row, col, group, map(row, col, group)))
-                        Next
+            For row As Integer = rowFirst To rowLast
+                For col As Integer = colFirst To colLast
+                    For group As Integer = groupFirst To groupLast
+                        sb.AppendFormat("{0};{1};{2};{3}", row, col, group, map(row, col, group))
+                        sb.AppendLine()
                     Next
                 Next
-            End Using
+            Next
 
-            Me.RunInstallScript(fileName)
-            Me.RunPostSaveScript(fileName)
+            System.IO.File.WriteAllText(fileName, sb.ToString())
+
+            Dim timeStep As Integer = ts.iTimeStep
+
+            If timeStep = 1 Then
+                Me.RunInstallScript(fileName)
+            End If
+
+            Dim count As Integer = timeStep * 28 - 28
+
+            Dim basePath As String = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE", "diatome", "results", "biomass")
+            Dim targetFileName As String = $"agent_{count}.csv"
+            Dim fullPath As String = System.IO.Path.Combine(basePath, targetFileName)
+
+            If System.IO.Directory.Exists(basePath) Then
+                Debug.WriteLine($"Contenu de {basePath} :")
+                For Each f As String In System.IO.Directory.GetFiles(basePath)
+                    Debug.WriteLine(System.IO.Path.GetFileName(f))
+                Next
+            End If
+
+            If timeStep > 1 Then
+                Debug.WriteLine($"Waiting for file: {targetFileName}")
+                While Not System.IO.File.Exists(fullPath)
+                    System.Threading.Thread.Sleep(2000) ' Pause de 2 secondes
+                End While
+                Debug.WriteLine($"File found: {targetFileName}")
+            End If
+
+            Me.RunPostSaveScript(fileName, ts.iTimeStep)
 
         End Sub
 
@@ -540,17 +568,18 @@ Namespace Ecospace
                     Directory.CreateDirectory(targetFolderDepth)
                 End If
                 Dim depth As cEcospaceLayerDepth = bm.LayerDepth
-                Using w As New StreamWriter(Path.Combine(targetFolderDepth, "Depth.txt"), False)
-                    w.WriteLine("row;col;depth")
-                    For r As Integer = 1 To bm.InRow
-                        For c As Integer = 1 To bm.InCol
-                            If bm.IsModelledCell(r, c) Then
-                                Dim v As Single = CSng(depth.Cell(r, c))
-                                w.WriteLine(String.Format(CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, v))
-                            End If
-                        Next
+                Dim sbDepth As New System.Text.StringBuilder()
+                sbDepth.AppendLine("row;col;depth")
+                For r As Integer = 1 To bm.InRow
+                    For c As Integer = 1 To bm.InCol
+                        If bm.IsModelledCell(r, c) Then
+                            Dim v As Single = CSng(depth.Cell(r, c))
+                            sbDepth.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, v)
+                            sbDepth.AppendLine()
+                        End If
                     Next
-                End Using
+                Next
+                File.WriteAllText(Path.Combine(targetFolderDepth, "DepthMap.txt"), sbDepth.ToString())
             Catch ex As Exception
                 Debug.WriteLine("SaveStaticMaps Depth error: " & ex.Message)
             End Try
@@ -561,17 +590,18 @@ Namespace Ecospace
                     Directory.CreateDirectory(targetFolderPorts)
                 End If
                 Dim portsAll As cEcospaceLayerPort = bm.LayerPort(0)
-                Using w As New StreamWriter(Path.Combine(targetFolderPorts, "Ports_AllFleets.txt"), False)
-                    w.WriteLine("row;col;port")
-                    For r As Integer = 1 To bm.InRow
-                        For c As Integer = 1 To bm.InCol
-                            If bm.IsModelledCell(r, c) Then
-                                Dim hasPort As Boolean = CBool(portsAll.Cell(r, c))
-                                w.WriteLine(String.Format("{0};{1};{2}", r, c, If(hasPort, 1, 0)))
-                            End If
-                        Next
+                Dim sbPorts As New System.Text.StringBuilder()
+                sbPorts.AppendLine("row;col;port")
+                For r As Integer = 1 To bm.InRow
+                    For c As Integer = 1 To bm.InCol
+                        If bm.IsModelledCell(r, c) Then
+                            Dim hasPort As Boolean = CBool(portsAll.Cell(r, c))
+                            sbPorts.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, If(hasPort, 1, 0))
+                            sbPorts.AppendLine()
+                        End If
                     Next
-                End Using
+                Next
+                File.WriteAllText(Path.Combine(targetFolderPorts, "PortsMap.txt"), sbPorts.ToString())
             Catch ex As Exception
                 Debug.WriteLine("SaveStaticMaps Ports error: " & ex.Message)
             End Try
@@ -591,6 +621,7 @@ Namespace Ecospace
                         habName = "Hab" & ih
                     End Try
                     Dim safeName As String = String.Join("_", habName.Split(Path.GetInvalidFileNameChars()))
+
                     Using w As New StreamWriter(Path.Combine(targetFolderHabitats, "Habitat_" & ih & "_" & safeName & ".txt"), False)
                         w.WriteLine("row;col;value")
                         For r As Integer = 1 To bm.InRow
@@ -609,34 +640,41 @@ Namespace Ecospace
 
         End Sub
 
-
+        Private Function GetInstallScriptContent() As String
+            Dim sb As New System.Text.StringBuilder()
+            sb.AppendLine("$scriptDir = $PSScriptRoot")
+            sb.AppendLine("$scriptDirParent = (Get-Item $scriptDir).Parent.Parent.FullName")
+            sb.AppendLine("$fibePath = Join-Path $scriptDirParent ""FIBE\diatome""")
+            sb.AppendLine("")
+            sb.AppendLine("if (Test-Path $fibePath) {")
+            sb.AppendLine("    exit")
+            sb.AppendLine("} else {")
+            sb.AppendLine("    $fibeParent = Join-Path $scriptDirParent ""FIBE""")
+            sb.AppendLine("    if (-not (Test-Path $fibeParent)) {")
+            sb.AppendLine("        New-Item -Path $fibeParent -ItemType Directory -Force | Out-Null")
+            sb.AppendLine("    }")
+            sb.AppendLine("    Set-Location $fibeParent")
+            sb.AppendLine("    git clone https://github.com/enzochoffat/diatome.git")
+            sb.AppendLine("    Set-Location $fibePath")
+            sb.AppendLine("    python -m venv venv")
+            sb.AppendLine("    .\venv\Scripts\Activate.ps1")
+            sb.AppendLine("    pip install -r requirement.txt")
+            sb.AppendLine("}")
+            Return sb.ToString()
+        End Function
 
         Private Sub RunInstallScript(fileName As String)
 
-            Dim scriptInstallPath As String = Path.Combine(Path.GetDirectoryName(fileName), "install.ps1")
+            Dim scriptDir As String = Path.GetDirectoryName(fileName)
+            Dim scriptInstallPath As String = Path.Combine(scriptDir, "install.ps1")
 
-            Using writer As New StreamWriter(scriptInstallPath, False)
-                writer.WriteLine("")
-                writer.WriteLine("$scriptDir = $PSScriptRoot")
-                writer.WriteLine("$scriptDirParent = (Get-Item $scriptDir).Parent.Parent.FullName")
-                writer.WriteLine("$fibePath = Join-Path $scriptDirParent ""FIBE\diatome""")
-
-                writer.WriteLine("if (Test-Path $fibePath) {")
-                writer.WriteLine("    exit")
-                writer.WriteLine("} else {")
-                writer.WriteLine("    $fibeParent = Join-Path $scriptDirParent ""FIBE""")
-                writer.WriteLine("    if (-not (Test-Path $fibeParent)) {")
-                writer.WriteLine("        New-Item -Path $fibeParent -ItemType Directory -Force | Out-Null")
-                writer.WriteLine("    }")
-                writer.WriteLine("    Set-Location $fibeParent")
-                writer.WriteLine("    git clone https://github.com/enzochoffat/diatome.git")
-                writer.WriteLine("    Set-Location $fibePath")
-                writer.WriteLine("    python -m venv venv")
-                writer.WriteLine("    .\venv\Scripts\Activate.ps1")
-                writer.WriteLine("    pip install -r requirement.txt")
-                writer.WriteLine("}")
-
-            End Using
+            If Not File.Exists(scriptInstallPath) Then
+                Dim content As String = Me.GetInstallScriptContent()
+                File.WriteAllText(scriptInstallPath, content)
+                Console.WriteLine("Install script created at: " & scriptInstallPath)
+            Else
+                Console.WriteLine("Install script already exists at: " & scriptInstallPath)
+            End If
 
             Dim psi As New ProcessStartInfo()
             psi.FileName = "powershell.exe"
@@ -653,49 +691,74 @@ Namespace Ecospace
 
         End Sub
 
-        Private Sub RunPostSaveScript(fileName As String)
+        Private Function GetPostSaveScriptContent() As String
+            Dim sb As New System.Text.StringBuilder()
+            sb.AppendLine("param(")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [string]$InputFile,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [int]$TimeStep")
+            sb.AppendLine(")")
+            sb.AppendLine("")
+            sb.AppendLine("$scriptDir = $PSScriptRoot")
+            sb.AppendLine("New-Item -Path (Split-Path $scriptDir) -Name ""Biomass"" -ItemType Directory -Force")
+            sb.AppendLine("$filePath = Join-Path $scriptDir $InputFile")
+            sb.AppendLine("")
+            sb.AppendLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent) -Parent")
 
-            Dim scriptPath As String = Path.Combine(Path.GetDirectoryName(fileName), "post_save.ps1")
+            ' Script Python principal
+            sb.AppendLine("$pythonScript = Join-Path $parentDir ""FIBE.py""")
+            sb.AppendLine("python $pythonScript $InputFile")
 
-            Using writer As New StreamWriter(scriptPath, False)
-                writer.WriteLine("param(")
-                writer.WriteLine("    [Parameter(Mandatory = $true)]")
-                writer.WriteLine("    [string]$InputFile")
-                writer.WriteLine(")")
-                writer.WriteLine("")
-                writer.WriteLine("$scriptDir = $PSScriptRoot")
-                writer.WriteLine("New-Item -Path (Split-Path $scriptDir) -Name ""Biomass"" -ItemType Directory -Force")
-                writer.WriteLine("$filePath = Join-Path $scriptDir $InputFile")
-                writer.WriteLine("")
-                writer.WriteLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent) -Parent")
-                writer.WriteLine("$pythonScript = Join-Path $parentDir ""FIBE.py""")
-                writer.WriteLine("python $pythonScript $InputFile")
-                writer.WriteLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent ) -Parent ")
-                writer.WriteLine("$pythonScript = Join-Path $parentDir ""Convert_static_map.py""")
-                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Depth""")
-                writer.WriteLine("python $pythonScript $InputFile")
-                writer.WriteLine("")
-                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Ports""")
-                writer.WriteLine("python $pythonScript $InputFile")
-                writer.WriteLine("")
-                writer.WriteLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Habitats""")
-                writer.WriteLine("python $pythonScript $InputFile")
-                writer.WriteLine("")
-                writer.WriteLine(".\..\..\CreateJSON.ps1")
-                writer.WriteLine("cd ..\..\FIBE\diatome")
-                writer.WriteLine(".\venv\Scripts\Activate.ps1")
-                writer.WriteLine("python .\scripts\run_simulation.py .\configs\config.json")
-            End Using
+            ' Conversion des maps statiques
+            sb.AppendLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent ) -Parent ")
+            sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_static_map.py""")
+
+            sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Depth""")
+            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("")
+
+            sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Ports""")
+            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("")
+
+            sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Habitats""")
+            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("")
+
+            sb.AppendLine(".\..\..\CreateJSON.ps1 $TimeStep")
+            sb.AppendLine("cd ..\..\FIBE\diatome")
+            sb.AppendLine("if ($TimeStep -eq 1) {")
+            sb.AppendLine("  .\venv\Scripts\Activate.ps1")
+            sb.AppendLine("  python .\scripts\run_simulation.py .\configs\config.json")
+            sb.AppendLine("}")
+
+            Return sb.ToString()
+        End Function
+
+        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer)
+
+            Dim scriptDir As String = Path.GetDirectoryName(fileName)
+            Dim scriptPath As String = Path.Combine(scriptDir, "post_save.ps1")
+
+
+            If Not File.Exists(scriptPath) Then
+                Dim content As String = Me.GetPostSaveScriptContent()
+                File.WriteAllText(scriptPath, content)
+                Console.WriteLine("Post save script created at: " & scriptPath)
+            Else
+                Console.WriteLine("Post save script already exists at: " & scriptPath)
+            End If
 
             Dim psi As New ProcessStartInfo()
             psi.FileName = "powershell.exe"
-            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}""", scriptPath, fileName)
+            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2}", scriptPath, fileName, timeStep)
             psi.UseShellExecute = True
             psi.CreateNoWindow = True
             psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)
 
             Dim p As Process = Process.Start(psi)
-            p.WaitForExit()
+            'p.WaitForExit()
             Dim exitCode As Integer = p.ExitCode
             Console.WriteLine("Post save script exited with code: " & exitCode)
 

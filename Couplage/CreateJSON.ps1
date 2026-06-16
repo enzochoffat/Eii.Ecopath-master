@@ -1,120 +1,109 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [int]$TimeStep
+)
+
+# --- 1. Initialisation et Validation ---
 $scriptDir = $PSScriptRoot
-$databasePath = Join-Path $scriptDir "Data\Biomass"
-$depthPath = Join-Path $scriptDir "Data\Depth\Depth.csv"
-$portsPath = Join-Path $scriptDir "Data\Ports\Ports_AllFleets.csv"
-$habitatsPath = Join-Path $scriptDir "Data\Habitats"
 $jsonPath = Join-Path $scriptDir "FIBE\diatome\configs\config_default.json"
-$newFile = Join-Path $scriptDir "FIBE\diatome\configs\config.json" 
+$finalJsonPath = Join-Path $scriptDir "FIBE\diatome\configs\config.json"
+$tempJsonPath = "$finalJsonPath.tmp"
 
 if (-Not (Test-Path $jsonPath)) {
-    Write-Host "Base JSON file not found at $jsonPath"
+    Write-Error "Fichier JSON de base introuvable : $jsonPath"
     exit 1
 }
 
-Copy-Item $jsonPath -Destination $newFile -Force
-Write-Host "Copied base JSON to $newFile"
+# Chargement unique de la configuration
+$config = Get-Content -Path $jsonPath -Raw | ConvertFrom-Json
 
-$configContent = Get-Content -Path $newFile -Raw -Encoding UTF8
-$config = $configContent | ConvertFrom-Json
+# Initialisation unique du conteneur 'maps'
+if (-not $config.PSObject.Properties.Match('maps')) {
+    $config | Add-Member -Name "maps" -Value ([PSCustomObject]@{}) -MemberType NoteProperty
+}
+$maps = $config.maps
 
-$dataFolder = $databasePath 
+# Application du TimeStep
+$config.simulation | Add-Member -Name "step" -Value $TimeStep -MemberType NoteProperty -Force
 
-if (Test-Path $dataFolder) {
-    Write-Host "Scan du dossier : $dataFolder"
-    
-    $csvFiles = Get-ChildItem -Path $dataFolder -Filter "*.csv" -File
-    $speciesMap = @{}
+# --- 2. Fonctions Helper pour la réduction de code ---
 
-    if ($csvFiles.Count -gt 0) {
-        foreach ($file in $csvFiles) {
-            $fileName = $file.Name
-            $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-            $key = $nameWithoutExt
-            
-            # Nettoyage du nom si préfixe "map_" présent
-            if ($key -match "map_(.*)") {
-                $key = $matches[1] 
+function Add-FileMap {
+    param(
+        [string]$Path,
+        [string]$PropertyName,
+        [scriptBlock]$KeyExtractor
+    )
+
+    if (Test-Path $Path) {
+        Write-Host "Traitement : $Path"
+        $fileMap = @{}
+        
+        # Optimisation : Filtrage direct dans Get-ChildItem
+        $files = Get-ChildItem -Path $Path -Filter "*.csv" -File -ErrorAction SilentlyContinue
+        
+        foreach ($file in $files) {
+            $key = & $KeyExtractor $file
+            if ($key) {
+                $fileMap[$key] = $file.FullName
             }
-            
-            # Construction du chemin relatif tel que dans votre exemple
-            $relativePath = Join-Path $DataFolder "\$fileName"
-            $speciesMap[$key] = $relativePath
         }
+        
+        $maps | Add-Member -Name $PropertyName -Value $fileMap -MemberType NoteProperty -Force
+    } else {
+        Write-Warning "Chemin introuvable : $Path"
     }
-
-    # Vérification et création de la structure "maps" si elle n'existe pas
-    if (-not $config.PSObject.Properties.Match('maps')) {
-        $config | Add-Member -Name "maps" -Value (New-Object PSObject) -MemberType NoteProperty
-    }
-
-    # Mise à jour spécifique de la propriété "species_map" sans toucher aux autres
-    $config.maps | Add-Member -Name "species_map" -Value $speciesMap -MemberType NoteProperty -Force
-    
-    $config | ConvertTo-Json -Depth 10 | Set-Content -Path $newFile
-    Write-Host "Configuration mise à jour et enregistrée dans $newFile"
-} else {
-    Write-Host "Le dossier de données n'existe pas : $dataFolder"
 }
 
+# --- 3. Exécution des Mappings ---
+
+# Biomass
+Add-FileMap -Path (Join-Path $scriptDir "Data\Biomass") -PropertyName "species_map" -KeyExtractor {
+    param($f)
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+    if ($name -match "map_(.*)") { return $matches[1] }
+    return $name
+}
+
+# Depth (Fichier unique)
+$depthPath = Join-Path $scriptDir "Data\Depth\DepthMap.csv"
 if (Test-Path $depthPath) {
-    Write-Host "Lecture du fichier de profondeur : $depthPath"    
-
-    if (-not $config.PSObject.Properties.Match('maps')) {
-        $config | Add-Member -Name "maps" -Value (New-Object PSObject) -MemberType NoteProperty
-    }
-
-    $config.maps | Add-Member -Name "spatial_map" -Value $depthPath -MemberType NoteProperty -Force
-    $config | ConvertTo-Json -Depth 10 | Set-Content -Path $newFile
+    $maps | Add-Member -Name "spatial_map" -Value $depthPath -MemberType NoteProperty -Force
 } else {
-    Write-Host "Le fichier de profondeur n'existe pas : $depthPath"
+    Write-Warning "Fichier de profondeur introuvable : $depthPath"
 }
 
+# Ports (Fichier unique)
+$portsPath = Join-Path $scriptDir "Data\Ports\PortsMap.csv"
 if (Test-Path $portsPath) {
-    Write-Host "Lecture du fichier de ports : $portsPath"    
-
-    if (-not $config.PSObject.Properties.Match('maps')) {
-        $config | Add-Member -Name "maps" -Value (New-Object PSObject) -MemberType NoteProperty
-    }
-
-    $config.maps | Add-Member -Name "ports_map" -Value $portsPath -MemberType NoteProperty -Force
-    $config | ConvertTo-Json -Depth 10 | Set-Content -Path $newFile
+    $maps | Add-Member -Name "ports_map" -Value $portsPath -MemberType NoteProperty -Force
 } else {
-    Write-Host "Le fichier de ports n'existe pas : $portsPath"
+    Write-Warning "Fichier de ports introuvable : $portsPath"
 }
 
-if (Test-Path $habitatsPath) {
-    Write-Host "Scan du dossier : $habitatsPath"
+# Habitats
+Add-FileMap -Path (Join-Path $scriptDir "Data\Habitats") -PropertyName "habitat_map" -KeyExtractor {
+    param($f)
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+    if ($name -match "^[^_]+_\d+_(.*)") { return $matches[1] }
+    return $name
+}
+
+# --- 4. Écriture Atomique ---
+try {
+    # Conversion unique en JSON
+    $jsonOutput = $config | ConvertTo-Json -Depth 10
     
-    $csvFiles = Get-ChildItem -Path $habitatsPath -Filter "*.csv" -File
-    $habitatMap = @{}
-
-    if ($csvFiles.Count -gt 0) {
-        foreach ($file in $csvFiles) {
-            $fileName = $file.Name
-            $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-            $key = $nameWithoutExt
-            
-            # Nettoyage du nom si préfixe "map_" présent
-            if ($key -match "^[^_]+_\d+_(.*)") {
-                $key = $matches[1] 
-            }
-            
-            # Construction du chemin relatif tel que dans votre exemple
-            $relativePath = Join-Path $habitatsPath "\$fileName"
-            $habitatMap[$key] = $relativePath
-        }
-    }
-
-    # Vérification et création de la structure "maps" si elle n'existe pas
-    if (-not $config.PSObject.Properties.Match('maps')) {
-        $config | Add-Member -Name "maps" -Value (New-Object PSObject) -MemberType NoteProperty
-    }
-
-    # Mise à jour spécifique de la propriété "habitats_map" sans toucher aux autres
-    $config.maps | Add-Member -Name "habitats_map" -Value $habitatMap -MemberType NoteProperty -Force
+    # Écriture temporaire
+    $jsonOutput | Set-Content -Path $tempJsonPath -NoNewline
     
-    $config | ConvertTo-Json -Depth 10 | Set-Content -Path $newFile
-    Write-Host "Configuration mise à jour et enregistrée dans $newFile"
-} else {
-    Write-Host "Le dossier de données n'existe pas : $habitatsPath"
+    # Remplacement atomique
+    Move-Item -Path $tempJsonPath -Destination $finalJsonPath -Force
+    
+    Write-Host "Configuration mise à jour avec succès : $finalJsonPath"
+}
+catch {
+    Write-Error "Échec de l'écriture : $_"
+    if (Test-Path $tempJsonPath) { Remove-Item $tempJsonPath -Force }
+    exit 1
 }
