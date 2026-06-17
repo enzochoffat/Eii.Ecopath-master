@@ -538,6 +538,8 @@ Namespace Ecospace
             Dim basePath As String = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE", "diatome", "results", "biomass")
             Dim targetFileName As String = $"agent_{count}.csv"
             Dim fullPath As String = System.IO.Path.Combine(basePath, targetFileName)
+            Dim runTime As TextBox = Me.m_tbTotalTime
+            Dim valueRunTime As Integer = CInt(runTime.Text.Replace("""", ""))
 
             If System.IO.Directory.Exists(basePath) Then
                 Debug.WriteLine($"Contenu de {basePath} :")
@@ -554,7 +556,7 @@ Namespace Ecospace
                 Debug.WriteLine($"File found: {targetFileName}")
             End If
 
-            Me.RunPostSaveScript(fileName, ts.iTimeStep)
+            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime)
 
         End Sub
 
@@ -697,7 +699,9 @@ Namespace Ecospace
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
             sb.AppendLine("    [string]$InputFile,")
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
-            sb.AppendLine("    [int]$TimeStep")
+            sb.AppendLine("    [int]$TimeStep,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    $runTime")
             sb.AppendLine(")")
             sb.AppendLine("")
             sb.AppendLine("$scriptDir = $PSScriptRoot")
@@ -726,7 +730,7 @@ Namespace Ecospace
             sb.AppendLine("python $pythonScript $InputFile")
             sb.AppendLine("")
 
-            sb.AppendLine(".\..\..\CreateJSON.ps1 $TimeStep")
+            sb.AppendLine(".\..\..\CreateJSON.ps1 $TimeStep $runTime")
             sb.AppendLine("cd ..\..\FIBE\diatome")
             sb.AppendLine("if ($TimeStep -eq 1) {")
             sb.AppendLine("  .\venv\Scripts\Activate.ps1")
@@ -736,7 +740,7 @@ Namespace Ecospace
             Return sb.ToString()
         End Function
 
-        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer)
+        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer, valueRunTime As Integer)
 
             Dim scriptDir As String = Path.GetDirectoryName(fileName)
             Dim scriptPath As String = Path.Combine(scriptDir, "post_save.ps1")
@@ -752,7 +756,7 @@ Namespace Ecospace
 
             Dim psi As New ProcessStartInfo()
             psi.FileName = "powershell.exe"
-            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2}", scriptPath, fileName, timeStep)
+            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3}", scriptPath, fileName, timeStep, valueRunTime)
             psi.UseShellExecute = True
             psi.CreateNoWindow = True
             psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)

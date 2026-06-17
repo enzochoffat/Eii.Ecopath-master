@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
-    [int]$TimeStep
+    [int]$TimeStep,
+    [Parameter(Mandatory = $true)]
+    [int]$runTime
 )
 
 # --- 1. Initialisation et Validation ---
@@ -25,6 +27,8 @@ $maps = $config.maps
 
 # Application du TimeStep
 $config.simulation | Add-Member -Name "step" -Value $TimeStep -MemberType NoteProperty -Force
+$config.simulation | Add-Member -Name "coupling" -Value $true -MemberType NoteProperty -Force
+$config.simulation | Add-Member -Name "duration_years" -Value $runTime -MemberType NoteProperty -Force
 
 # --- 2. Fonctions Helper pour la réduction de code ---
 
