@@ -35,6 +35,8 @@ Public Class cEcospaceTimestep
 
     Private m_ConMax() As Single
 
+    Private m_offVesselPrice(,) As Single
+
     Private m_biomass() As Single 'biomass by group
     Private m_relativebiomass() As Single 'biomass relative to start biomass by group
     Private m_biomassByRegion(,) As Single 'biomass by group region
@@ -580,6 +582,18 @@ Public Class cEcospaceTimestep
         Get
             Return Me.m_stanzaData
         End Get
+    End Property
+
+    ''' <summary>
+    ''' Off-vessel price table dimensioned by Fleet, Group
+    ''' </summary>
+    Public Property OffVesselPrice As Single(,)
+        Get
+            Return Me.m_offVesselPrice
+        End Get
+        Friend Set(value As Single(,))
+            Me.m_offVesselPrice = value
+        End Set
     End Property
 
 #End Region

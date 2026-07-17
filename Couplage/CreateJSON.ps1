@@ -2,13 +2,15 @@ param(
     [Parameter(Mandatory = $true)]
     [int]$TimeStep,
     [Parameter(Mandatory = $true)]
-    [int]$runTime
+    [int]$runTime,
+    [Parameter(Mandatory = $true)]
+    [int]$FirstYear
 )
 
 # --- 1. Initialisation et Validation ---
 $scriptDir = $PSScriptRoot
-$jsonPath = Join-Path $scriptDir "FIBE\diatome\configs\config_default.json"
-$finalJsonPath = Join-Path $scriptDir "FIBE\diatome\configs\config.json"
+$jsonPath = Join-Path $scriptDir "FIBE\diatome\configs_json\config_default.json"
+$finalJsonPath = Join-Path $scriptDir "FIBE\diatome\configs_json\config.json"
 $tempJsonPath = "$finalJsonPath.tmp"
 
 if (-Not (Test-Path $jsonPath)) {
@@ -29,6 +31,7 @@ $maps = $config.maps
 $config.simulation | Add-Member -Name "step" -Value $TimeStep -MemberType NoteProperty -Force
 $config.simulation | Add-Member -Name "coupling" -Value $true -MemberType NoteProperty -Force
 $config.simulation | Add-Member -Name "duration_years" -Value $runTime -MemberType NoteProperty -Force
+$config.simulation | Add-Member -Name "start_date" -Value "$FirstYear-01-01" -MemberType NoteProperty -Force
 
 # --- 2. Fonctions Helper pour la réduction de code ---
 

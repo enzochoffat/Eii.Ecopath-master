@@ -9800,6 +9800,9 @@ Public Class cCore
                 End If
             End If
 
+            'Always populate off-vessel price (even during spin-up)
+            m_spaceresults.OffVesselPrice = Me.m_Ecospace.OffVesselPriceData
+
             'Call the interface delegate
             For Each callback As EcoSpaceInterfaceDelegate In m_SpaceInterfaceCallBacks
                 Try

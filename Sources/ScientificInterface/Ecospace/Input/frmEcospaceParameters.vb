@@ -499,6 +499,7 @@ Namespace Ecospace
             If ts.iTimeStep = 1 Then
                 Me.SaveStaticMaps(targetFolder)
             End If
+            Me.SaveOffVesselPriceToTxt(ts, targetFolder)
             Me.SaveBiomassMapToTxt(map, fileName, ts)
 
 
@@ -540,6 +541,7 @@ Namespace Ecospace
             Dim fullPath As String = System.IO.Path.Combine(basePath, targetFileName)
             Dim runTime As TextBox = Me.m_tbTotalTime
             Dim valueRunTime As Integer = CInt(runTime.Text.Replace("""", ""))
+            Dim iFirstYear As Integer = Me.Core.EcosimFirstYear()
 
             If System.IO.Directory.Exists(basePath) Then
                 Debug.WriteLine($"Contenu de {basePath} :")
@@ -556,7 +558,38 @@ Namespace Ecospace
                 Debug.WriteLine($"File found: {targetFileName}")
             End If
 
-            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime)
+            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime, iFirstYear)
+
+        End Sub
+
+        Private Sub SaveOffVesselPriceToTxt(ByRef ts As cEcospaceTimestep, targetFolder As String)
+
+            Dim offVesselPrice As Single(,) = ts.OffVesselPrice
+            'If offVesselPrice Is Nothing Then Return
+
+            Dim targetOffVesselPriceFolder As String = Path.GetFullPath(Path.Combine(targetFolder, "OffVesselPrice"))
+            If Not Directory.Exists(targetOffVesselPriceFolder) Then
+                Directory.CreateDirectory(targetOffVesselPriceFolder)
+            End If
+
+            Dim fileName As String = Path.Combine(targetOffVesselPriceFolder, "EcospaceOffVesselPrice.txt")
+
+            Dim sb As New System.Text.StringBuilder()
+            sb.AppendLine("fleet;group;off_vessel_price")
+
+            Dim fleetFirst As Integer = offVesselPrice.GetLowerBound(0)
+            Dim fleetLast As Integer = offVesselPrice.GetUpperBound(0)
+            Dim groupFirst As Integer = offVesselPrice.GetLowerBound(1)
+            Dim groupLast As Integer = offVesselPrice.GetUpperBound(1)
+
+            For fleet As Integer = fleetFirst To fleetLast
+                For group As Integer = groupFirst To groupLast
+                    sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", fleet, group, offVesselPrice(fleet, group))
+                    sb.AppendLine()
+                Next
+            Next
+
+            System.IO.File.WriteAllText(fileName, sb.ToString())
 
         End Sub
 
@@ -591,7 +624,7 @@ Namespace Ecospace
                 If Not Directory.Exists(targetFolderPorts) Then
                     Directory.CreateDirectory(targetFolderPorts)
                 End If
-                Dim portsAll As cEcospaceLayerPort = bm.LayerPort(0)
+                Dim portsAll As cEcospaceLayerPort = bm.LayerPort(5)
                 Dim sbPorts As New System.Text.StringBuilder()
                 sbPorts.AppendLine("row;col;port")
                 For r As Integer = 1 To bm.InRow
@@ -660,7 +693,7 @@ Namespace Ecospace
             sb.AppendLine("    Set-Location $fibePath")
             sb.AppendLine("    python -m venv venv")
             sb.AppendLine("    .\venv\Scripts\Activate.ps1")
-            sb.AppendLine("    pip install -r requirement.txt")
+            sb.AppendLine("    pip install -r requirement_coupling.txt")
             sb.AppendLine("}")
             Return sb.ToString()
         End Function
@@ -701,7 +734,9 @@ Namespace Ecospace
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
             sb.AppendLine("    [int]$TimeStep,")
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
-            sb.AppendLine("    $runTime")
+            sb.AppendLine("    $runTime,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [int]$FirstYear")
             sb.AppendLine(")")
             sb.AppendLine("")
             sb.AppendLine("$scriptDir = $PSScriptRoot")
@@ -730,17 +765,23 @@ Namespace Ecospace
             sb.AppendLine("python $pythonScript $InputFile")
             sb.AppendLine("")
 
-            sb.AppendLine(".\..\..\CreateJSON.ps1 $TimeStep $runTime")
+            ' Conversion off vessel price
+            sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_off_vessel_price.py""")
+            sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""OffVesselPrice""")
+            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("")
+
+            sb.AppendLine(".\..\..\CreateJSON.ps1 $TimeStep $runTime $FirstYear")
             sb.AppendLine("cd ..\..\FIBE\diatome")
             sb.AppendLine("if ($TimeStep -eq 1) {")
             sb.AppendLine("  .\venv\Scripts\Activate.ps1")
-            sb.AppendLine("  python .\scripts\run_simulation.py .\configs\config.json")
+            sb.AppendLine("  python -m src.scripts.run_simulation .\configs_json\config.json")
             sb.AppendLine("}")
 
             Return sb.ToString()
         End Function
 
-        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer, valueRunTime As Integer)
+        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer, valueRunTime As Integer, iFirstYear As Integer)
 
             Dim scriptDir As String = Path.GetDirectoryName(fileName)
             Dim scriptPath As String = Path.Combine(scriptDir, "post_save.ps1")
@@ -756,8 +797,12 @@ Namespace Ecospace
 
             Dim psi As New ProcessStartInfo()
             psi.FileName = "powershell.exe"
-            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3}", scriptPath, fileName, timeStep, valueRunTime)
-            psi.UseShellExecute = True
+            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3} {4}", scriptPath, fileName, timeStep, valueRunTime, iFirstYear)
+            If timeStep = 1 Then
+                psi.UseShellExecute = True
+            Else
+                psi.UseShellExecute = False
+            End If
             psi.CreateNoWindow = True
             psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)
 

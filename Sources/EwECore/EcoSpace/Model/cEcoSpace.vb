@@ -224,6 +224,11 @@ Public Class cEcoSpace
 
     ' Calculated prices for a time step
     Private OffVesselPrice(,) As Single
+    Friend ReadOnly Property OffVesselPriceData As Single(,)
+        Get
+            Return Me.OffVesselPrice
+        End Get
+    End Property
 
     ''' <summary>
     ''' Converts an iGroup into a cumulative stanza index Nvarsplit
@@ -758,7 +763,7 @@ Public Class cEcoSpace
         Try
 
 #If Dumpcb Then
-            Dim CoutFile As String = ”spaceconc.csv”
+            Dim CoutFile As String = ï¿½spaceconc.csvï¿½
             Dim CoutWriter As New System.IO.StreamWriter(CoutFile, False)
             Dim CoutVals() As String
             ReDim CoutVals(3 + m_Data.NGroups)
@@ -1101,11 +1106,11 @@ Public Class cEcoSpace
                         CoutVals(0) = CStr(itt) & ","
                         For i = 1 To m_Data.InRow
                             For j = 1 To m_Data.InCol
-                                CoutVals(1) = CStr(i) & ”,”
-                                CoutVals(2) = CStr(j) & ”,”
-                                CoutVals(3) = m_Data.Ccell(i, j, 0) & ”,”
+                                CoutVals(1) = CStr(i) & ï¿½,ï¿½
+                                CoutVals(2) = CStr(j) & ï¿½,ï¿½
+                                CoutVals(3) = m_Data.Ccell(i, j, 0) & ï¿½,ï¿½
                                 For ip = 1 To m_Data.NGroups
-                                    CoutVals(3 + ip) = CStr(m_Data.Ccell(i, j, ip) / m_Data.Bcell(i, j, ip)) & ”,”
+                                    CoutVals(3 + ip) = CStr(m_Data.Ccell(i, j, ip) / m_Data.Bcell(i, j, ip)) & ï¿½,ï¿½
                                 Next
                                 For ii As Integer = 0 To 3 + m_Data.NGroups
                                     CoutWriter.Write(CoutVals(ii))
@@ -4483,7 +4488,7 @@ exitline:
                                 'What this represents is attractiveness equal to exp(effpower*(I/C-1)), where I/C is profitability, -1 is subtracted to scale to exp(0)=1 for I/C=1.  
                                 'Effpower represents (as before) an effort concentration factor, low values implying less variation in valt with changes in I/C.
                                 'If you run this, should be nearly 2x faster than old code, and will concentrate effort a bit more in best fishing areas.  
-                                'I can also modify it further to force the attract’s to result in any observed effort map that we might enter, 
+                                'I can also modify it further to force the attractï¿½s to result in any observed effort map that we might enter, 
                                 'essentially by replacing the cost C with a simpler empirical cost scaler.
                                 ' Valt = Exp((Valt / (EffortCost + SailCost * m_Data.Sail(iFlt, i, j) / m_Data.SailScale(iFlt)) - 1.0) * m_Data.EffPower(iFlt))
 
@@ -4795,7 +4800,7 @@ exitline:
                         'What this represents is attractiveness equal to exp(effpower*(I/C-1)), where I/C is profitability, -1 is subtracted to scale to exp(0)=1 for I/C=1.  
                         'Effpower represents (as before) an effort concentration factor, low values implying less variation in valt with changes in I/C.
                         'If you run this, should be nearly 2x faster than old code, and will concentrate effort a bit more in best fishing areas.  
-                        'I can also modify it further to force the attract’s to result in any observed effort map that we might enter, essentially by replacing the cost C with a simpler empirical cost scaler.
+                        'I can also modify it further to force the attractï¿½s to result in any observed effort map that we might enter, essentially by replacing the cost C with a simpler empirical cost scaler.
                         'Valt = Exp((Valt / (EffortCost + SailCost * m_Data.Sail(iFlt, iRow, iCol) / m_Data.SailScale(iFlt)) - 1.0) * m_Data.EffPower(iFlt))
                         Attract(iRow, iCol) = Valt * Me.EcoSpaceData.PAreaFished(iFlt)(iRow, iCol)  'may want to modify this by dividing by a site cost factor for cell i,j
                         'TotAttract += Attract(iRow, iCol)
@@ -6172,7 +6177,7 @@ exitline:
             '              on spatially restricted groups by predators that are widely distributed. When Vspace
             '              is too low, one effect will be to cause the iterative procedure that I sent this 
             '              morning to diverge, giving larger Atemp(ii) values on each iteration without limit.
-            '              What this divergence means is that Vspace is set too low to predict the “observed” 
+            '              What this divergence means is that Vspace is set too low to predict the ï¿½observedï¿½ 
             '              ecopath base consumption rates, when added up over the ecospace grid.
             'Debug.Assert(m_Data.Vspace(ii) > m_SimData.VulArena(ii))
             If Me.EcoSpaceData.Vspace(ii) < Me.EcoSimData.VulArena(ii) Then Me.EcoSpaceData.Vspace(ii) = Me.EcoSimData.VulArena(ii)
@@ -8377,14 +8382,14 @@ exitline:
 
     ''' <summary>
     ''' Multithreaded version
-    ''' Adjust habcap’s so as to cause oriented movement toward nearest good cells. It should be much, much faster than 
+    ''' Adjust habcapï¿½s so as to cause oriented movement toward nearest good cells. It should be much, much faster than 
     ''' old habgrad, uses dynamic programming to find minimum distances from bad cells to good ones and then exponential 
     ''' decrease in habcap with those distances; I have used the same algorithm to find things like minimum distances to 
     ''' fishing ports, nice because it even works for moving creatures around island barriers and such.
     ''' </summary>
     Private Sub AdjustLowHabCapsThreaded(ByVal ArgsOb As Object)
 
-        'dynamic programming algorithm to set gradient in low habcap cells (habcap<=habcapmin) so as to orient movement ‘toward cells with habcap>habcapmin
+        'dynamic programming algorithm to set gradient in low habcap cells (habcap<=habcapmin) so as to orient movement ï¿½toward cells with habcap>habcapmin
         Dim i As Integer, j As Integer, k As Integer, d As Integer, Dmin As Integer, DistMin(,) As Integer, Maxiter As Integer
         Dim HabCapMin As Single, MaxDist As Integer, iter As Integer, DistFac As Single, NumBad As Integer
         Dim grpArgs As cThreadedCallArgs
