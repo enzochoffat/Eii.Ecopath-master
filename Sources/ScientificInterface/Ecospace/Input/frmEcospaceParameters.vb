@@ -500,6 +500,7 @@ Namespace Ecospace
                 Me.SaveStaticMaps(targetFolder)
             End If
             Me.SaveOffVesselPriceToTxt(ts, targetFolder)
+            Me.SaveLandingsToTxt(ts, targetFolder)
             Me.SaveBiomassMapToTxt(map, fileName, ts)
 
 
@@ -585,6 +586,45 @@ Namespace Ecospace
             For fleet As Integer = fleetFirst To fleetLast
                 For group As Integer = groupFirst To groupLast
                     sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", fleet, group, offVesselPrice(fleet, group))
+                    sb.AppendLine()
+                Next
+            Next
+
+            System.IO.File.WriteAllText(fileName, sb.ToString())
+
+        End Sub
+
+        Private Sub SaveLandingsToTxt(ByRef ts As cEcospaceTimestep, targetFolder As String)
+
+            Dim nFleets As Integer = Me.Core.nFleets
+            Dim nGroups As Integer = Me.Core.nGroups
+
+            Dim landings As Single(,) = New Single(nFleets, nGroups) {}
+
+            For fleet As Integer = 1 To nFleets
+                For group As Integer = 1 To nGroups
+                    landings(fleet, group) = Me.Core.EcopathFleetInputs(fleet).Landings(group)
+                Next
+            Next
+
+            Dim targetLandingsFolder As String = Path.GetFullPath(Path.Combine(targetFolder, "Landings"))
+            If Not Directory.Exists(targetLandingsFolder) Then
+                Directory.CreateDirectory(targetLandingsFolder)
+            End If
+
+            Dim fileName As String = Path.Combine(targetLandingsFolder, "EcospaceLandings.txt")
+
+            Dim sb As New System.Text.StringBuilder()
+            sb.AppendLine("fleet;group;landings")
+
+            Dim fleetFirst As Integer = landings.GetLowerBound(0)
+            Dim fleetLast As Integer = landings.GetUpperBound(0)
+            Dim groupFirst As Integer = landings.GetLowerBound(1)
+            Dim groupLast As Integer = landings.GetUpperBound(1)
+
+            For fleet As Integer = fleetFirst To fleetLast
+                For group As Integer = groupFirst To groupLast
+                    sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", fleet, group, landings(fleet, group))
                     sb.AppendLine()
                 Next
             Next
@@ -768,6 +808,12 @@ Namespace Ecospace
             ' Conversion off vessel price
             sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_off_vessel_price.py""")
             sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""OffVesselPrice""")
+            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("")
+
+            ' Conversion landings
+            sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_landings.py""")
+            sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Landings""")
             sb.AppendLine("python $pythonScript $InputFile")
             sb.AppendLine("")
 

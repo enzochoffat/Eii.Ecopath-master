@@ -96,6 +96,22 @@ Add-FileMap -Path (Join-Path $scriptDir "Data\Habitats") -PropertyName "habitat_
     return $name
 }
 
+# OffVesselPrice (Fichier unique)
+$offVesselPricePath = Join-Path $scriptDir "Data\OffVesselPrice\EcospaceOffVesselPrice.csv"
+if (Test-Path $offVesselPricePath) {
+    $config.maps.species_tables | Add-Member -Name "price" -Value $offVesselPricePath -MemberType NoteProperty -Force
+} else {
+    Write-Warning "Fichier off vessel price introuvable : $offVesselPricePath"
+}
+
+# Landings (Fichier unique)
+$landingsPath = Join-Path $scriptDir "Data\Landings\EcospaceLandings.csv"
+if (Test-Path $landingsPath) {
+    $config.maps.species_tables | Add-Member -Name "catchability" -Value $landingsPath -MemberType NoteProperty -Force
+} else {
+    Write-Warning "Fichier landings introuvable : $landingsPath"
+}
+
 # --- 4. Écriture Atomique ---
 try {
     # Conversion unique en JSON
