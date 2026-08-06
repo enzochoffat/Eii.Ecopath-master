@@ -456,6 +456,19 @@ Public Class cEcospaceDataStructures
     Public Ftot(,,) As Single
 
     ''' <summary>
+    ''' Total fishing mortality by fleet,group,row,col, provided by the FIBE coupling.
+    ''' </summary>
+    ''' <remarks>Filled monthly from the F_&lt;count&gt;.csv file written by FIBE, used to prefill
+    ''' <see cref="Ftot"/> before the effort distribution calculation. FIBE-managed fleets
+    ''' are skipped in the gravity models, so this F is not computed by EwE itself.</remarks>
+    Public FtotFIBE(,,,) As Single
+
+    ''' <summary>Flag per fleet, true when the fleet is managed by FIBE (coupled model).</summary>
+    ''' <remarks>FIBE-managed fleets are excluded from the Ecospace effort distribution (gravity models)
+    ''' and their fishing mortality comes from the FIBE coupling instead.</remarks>
+    Public isFIBEFleet() As Boolean
+
+    ''' <summary>
     ''' Fishing Mortality (catchrate) by a fleet for each cell fleet,row,col
     ''' </summary>
     ''' <remarks>Computed from Ecosim.FishRateGear(fleet,time) and "gravity attraction" in PredictEffortDistribution()  </remarks>
@@ -1086,6 +1099,8 @@ Public Class cEcospaceDataStructures
             Me.PredCell = Nothing
             Me.IFDweight = Nothing
             Me.Ftot = Nothing
+            Me.FtotFIBE = Nothing
+            Me.isFIBEFleet = Nothing
             Me.EffPower = Nothing
             Me.SEmult = Nothing
             Me.HabAreaProportion = Nothing
@@ -1437,6 +1452,7 @@ Public Class cEcospaceDataStructures
             ReDim Me.EcopathFleetDBID(Me.nFleets)
             ReDim Me.SEmult(Me.nFleets)
             ReDim Me.EffPower(Me.nFleets)
+            ReDim Me.isFIBEFleet(Me.nFleets)
 
             Me.setFleetDefaults()
 
@@ -1451,6 +1467,14 @@ Public Class cEcospaceDataStructures
         End Try
 
     End Sub
+
+    ''' <summary>
+    ''' Returns True when the fleet is managed by the FIBE coupling.
+    ''' </summary>
+    ''' <remarks>Defensive check: returns False when the flag array has not been allocated yet.</remarks>
+    Public Function isFIBEFleetManaged(ByVal iFleet As Integer) As Boolean
+        Return Me.isFIBEFleet IsNot Nothing AndAlso Me.isFIBEFleet.Length > iFleet AndAlso Me.isFIBEFleet(iFleet)
+    End Function
 
     ''' <summary>
     ''' Dimensions and sets the number of Effort Zones

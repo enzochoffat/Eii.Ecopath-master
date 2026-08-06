@@ -8958,10 +8958,28 @@ Namespace DataSources
                     ecospaceDS.EcopathFleetDBID(iFleet) = CInt(reader("EcopathFleetID"))
                     ecospaceDS.EffPower(iFleet) = CSng(reader("EffPower"))
                     ecospaceDS.SEmult(iFleet) = CSng(Me.m_db.ReadSafe(reader, "SEMult", 1.0))
+                    ' FIBE coupling: is this fleet managed by FIBE
+                    ecospaceDS.isFIBEFleet(iFleet) = CBool(Me.m_db.ReadSafe(reader, "IsFIBEFleet", False))
 
                     ' Read port map for a given fleet and land cells only
                     strMap = CStr(Me.m_db.ReadSafe(reader, "PortMap", ""))
                     bSucces = bSucces And cStringUtils.StringToArray(strMap, ecospaceDS.Port(iFleet), ecospaceDS.InRow, ecospaceDS.InCol)
+
+                    ' Diagnostic: count loaded port cells and log to temp file
+                    Try
+                        Dim nPorts As Integer = 0
+                        For rr As Integer = 1 To ecospaceDS.InRow
+                            For cc As Integer = 1 To ecospaceDS.InCol
+                                If ecospaceDS.Port(iFleet)(rr, cc) Then nPorts += 1
+                            Next
+                        Next
+                        System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ewe_ports_debug.log"),
+                            String.Format(System.Globalization.CultureInfo.InvariantCulture,
+                                "LOAD scenario={0} fleet={1} ecoFleetDBID={2} portMapLen={3} portCells={4} InRow={5} InCol={6}{7}",
+                                iScenarioID, iFleet, ecopathDS.FleetDBID(iFleet), strMap.Length, nPorts,
+                                ecospaceDS.InRow, ecospaceDS.InCol, vbCrLf))
+                    Catch
+                    End Try
 
                     ' Read sailing cost map for a given fleet and water cells only
                     strMap = CStr(Me.m_db.ReadSafe(reader, "SailCostMap", ""))
@@ -9101,6 +9119,11 @@ Namespace DataSources
                     drow("SEMult") = ecospaceDS.SEmult(iFleet)
                     drow("PortMap") = cStringUtils.ArrayToString(ecospaceDS.Port(iFleet), ecospaceDS.InRow, ecospaceDS.InCol)
                     drow("SailCostMap") = cStringUtils.ArrayToString(ecospaceDS.Sail(iFleet), ecospaceDS.InRow, ecospaceDS.InCol, ecospaceDS.DepthInput, True)
+
+                    ' FIBE coupling: is this fleet managed by FIBE
+                    If dt.Columns.Contains("IsFIBEFleet") Then
+                        drow("IsFIBEFleet") = ecospaceDS.isFIBEFleet(iFleet)
+                    End If
 
                     ' Wrap up: was this a new row?
                     If bNewRow Then
@@ -9270,6 +9293,10 @@ Namespace DataSources
                 drow("EffPower") = 1
                 drow("SailCostMap") = ""
                 drow("PortMap") = ""
+                ' FIBE coupling: new fleets are not managed by FIBE by default
+                If drow.Table.Columns.Contains("IsFIBEFleet") Then
+                    drow("IsFIBEFleet") = False
+                End If
 
                 writer.AddRow(drow)
                 Me.m_db.ReleaseWriter(writer)

@@ -23,7 +23,9 @@ Option Strict On
 
 Imports EwECore
 Imports EwEUtils.Core
+Imports EwEUtils.Logging
 Imports EwEUtils.SystemUtilities
+Imports Microsoft.Extensions.Logging
 Imports System.Globalization
 Imports System.Diagnostics
 Imports System.IO
@@ -97,6 +99,13 @@ Namespace Ecospace
         Private WithEvents m_bpUseOtherModel As cBooleanProperty = Nothing
         Private m_fpUseOtherModel As cEwEFormatProvider = Nothing
 
+        ' Logging
+        Private ReadOnly m_logger As ILogger = LoggingContext.CreateLogger(Of frmEcospaceParameters)()
+        Private ReadOnly m_fibeLogSync As New Object()
+
+        ' FIBE coupling: fleet selection for the fleets managed by FIBE
+        Private WithEvents m_clbFIBEFleets As CheckedListBox = Nothing
+
 #End Region ' Private vars
 
 #Region " Form events "
@@ -136,6 +145,9 @@ Namespace Ecospace
 
             Me.m_bpUseOtherModel = DirectCast(propMan.GetProperty(parms, eVarNameFlags.UseOtherModel), cBooleanProperty)
             Me.m_fpUseOtherModel = New cPropertyFormatProvider(Me.UIContext, Me.m_Couplage, Me.m_bpUseOtherModel)
+
+            ' FIBE coupling: build the fleet selection list
+            Me.InitializeFIBEFleetList()
 
             Me.m_clbAutosave.Items.Clear()
             For n As Integer = 1 To parms.nResultWriters
@@ -477,6 +489,139 @@ Namespace Ecospace
                 Me.m_bpUseOtherModel.SetValue(Me.m_Couplage.Checked)
             End If
 
+            ' FIBE coupling: show/hide the fleet selection
+            If Me.m_clbFIBEFleets IsNot Nothing Then
+                Me.m_clbFIBEFleets.Visible = Me.m_Couplage.Checked
+            End If
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Build the list of Ecospace fleets with a checkbox per fleet, to select
+        ''' the fleets that are managed by the FIBE coupling.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub InitializeFIBEFleetList()
+
+            If (Me.Core Is Nothing) Then Return
+            Dim ds As cEcospaceDataStructures = Me.Core.EcospaceDataStructures
+            If (ds Is Nothing) Then Return
+
+            Me.m_clbFIBEFleets = New CheckedListBox()
+            Me.m_clbFIBEFleets.CheckOnClick = True
+            Me.m_clbFIBEFleets.BorderStyle = BorderStyle.FixedSingle
+            Me.m_clbFIBEFleets.IntegralHeight = False
+            Me.m_clbFIBEFleets.Location = New Point(10, 40)
+            Me.m_clbFIBEFleets.Width = Me.m_plUseOtherModel.ClientSize.Width - 20
+            Me.m_clbFIBEFleets.Height = 120
+            Me.m_clbFIBEFleets.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
+            Me.m_clbFIBEFleets.Visible = Me.m_Couplage.Checked
+            Me.m_clbFIBEFleets.Name = "m_clbFIBEFleets"
+            Me.m_clbFIBEFleets.AccessibleName = "FIBE fleets"
+
+            For iFleet As Integer = 1 To ds.nFleets
+                Dim strFleetName As String = ""
+                Try
+                    strFleetName = Me.Core.EcopathFleetInputs(iFleet).Name
+                Catch ex As Exception
+                    strFleetName = "Fleet " & iFleet.ToString
+                End Try
+                Me.m_clbFIBEFleets.Items.Add(strFleetName, ds.isFIBEFleetManaged(iFleet))
+            Next
+
+            Me.m_plUseOtherModel.Controls.Add(Me.m_clbFIBEFleets)
+            Me.m_plUseOtherModel.Controls.SetChildIndex(Me.m_clbFIBEFleets, 0)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Event handler; called when the user toggles the FIBE checkbox of a fleet.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnFIBEFleetItemCheck(sender As Object, e As ItemCheckEventArgs) Handles m_clbFIBEFleets.ItemCheck
+
+            If (Me.Core Is Nothing) Then Return
+            Dim ds As cEcospaceDataStructures = Me.Core.EcospaceDataStructures
+            If (ds Is Nothing) Then Return
+
+            ' The list items are 0-based, the Ecospace fleets are 1-based
+            Dim iFleet As Integer = e.Index + 1
+            If (iFleet < 1) Or (iFleet > ds.nFleets) Then Return
+
+            ds.isFIBEFleet(iFleet) = (e.NewValue = CheckState.Checked)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Read the F_&lt;count&gt;.csv file exported by FIBE and store the fishing
+        ''' mortality per fleet,group,row,col in <see cref="cEcospaceDataStructures.FtotFIBE"/>.
+        ''' </summary>
+        ''' <param name="count">FIBE step count for the current month.</param>
+        ''' <param name="basePath">Folder that contains the FIBE results.</param>
+        ''' -------------------------------------------------------------------
+        Private Sub LoadFIBEFishingMortality(count As Integer, basePath As String)
+
+            Dim ds As cEcospaceDataStructures = Me.Core.EcospaceDataStructures
+            If (ds Is Nothing) Then Return
+            If (ds.FtotFIBE Is Nothing) Then Return
+
+            Dim fileName As String = "F_" & count.ToString & ".csv"
+            Dim fullPath As String = System.IO.Path.Combine(basePath, fileName)
+
+            ' FIBE writes the F file at the same time as the agent file, but wait
+            ' a bounded amount of time to be defensive (no infinite block)
+            Dim nWaited As Integer = 0
+            While (Not System.IO.File.Exists(fullPath)) And (nWaited < 30)
+                System.Threading.Thread.Sleep(1000)
+                nWaited += 1
+            End While
+            If Not System.IO.File.Exists(fullPath) Then
+                Me.m_logger.LogWarning("FIBE coupling: F file not found {File}, continuing without FIBE fishing mortality for this month", fullPath)
+                Return
+            End If
+
+            ' Clear the previous month values, the file may only contain part of the cells
+            Array.Clear(ds.FtotFIBE, 0, ds.FtotFIBE.Length)
+
+            Dim nFleets As Integer = ds.nFleets
+            Dim nGroups As Integer = ds.NGroups
+            Dim nRows As Integer = ds.InRow
+            Dim nCols As Integer = ds.InCol
+            Dim nLoaded As Integer = 0
+
+            For Each strLine As String In System.IO.File.ReadAllLines(fullPath)
+                If String.IsNullOrWhiteSpace(strLine) Then Continue For
+                If strLine.StartsWith("row") OrElse strLine.StartsWith("ligne") Then Continue For ' header
+                Dim parts() As String = strLine.Split(New Char() {";"c, ","c}, StringSplitOptions.None)
+                If parts.Length < 5 Then Continue For
+
+                Dim iRow As Integer = 0
+                Dim iCol As Integer = 0
+                Dim iFlt As Integer = 0
+                Dim iGrp As Integer = 0
+                Dim fVal As Single = 0
+
+                If Not Integer.TryParse(parts(0), iRow) Then Continue For
+                If Not Integer.TryParse(parts(1), iCol) Then Continue For
+                If Not Integer.TryParse(parts(2), iFlt) Then Continue For
+                If Not Integer.TryParse(parts(3), iGrp) Then Continue For
+                If Not Single.TryParse(parts(4), NumberStyles.Float, CultureInfo.InvariantCulture, fVal) Then Continue For
+
+                ' Bounds check, the Ecospace arrays use 1-based indexes
+                If (iRow < 1) Or (iRow > nRows) Then Continue For
+                If (iCol < 1) Or (iCol > nCols) Then Continue For
+                If (iFlt < 1) Or (iFlt > nFleets) Then Continue For
+                If (iGrp < 1) Or (iGrp > nGroups) Then Continue For
+
+                ds.FtotFIBE(iFlt, iGrp, iRow, iCol) = fVal
+                nLoaded += 1
+            Next
+
+            Me.m_logger.LogInformation("FIBE coupling: loaded {N} fishing mortality values from {File}", nLoaded, fullPath)
+
         End Sub
 
         Private Sub OnEcospaceTimeStep(ByRef ts As cEcospaceTimestep)
@@ -495,7 +640,7 @@ Namespace Ecospace
                 Directory.CreateDirectory(targetBiomassFolder)
             End If
             Dim fileName As String = Path.Combine(targetBiomassFolder, "EcospaceBiomassMap.txt")
-            
+
             If ts.iTimeStep = 1 Then
                 Me.SaveStaticMaps(targetFolder)
             End If
@@ -511,15 +656,11 @@ Namespace Ecospace
             Dim sb As New System.Text.StringBuilder()
             sb.AppendLine("row;col;group;biomass")
 
-            Dim rowFirst As Integer = map.GetLowerBound(0)
-            Dim rowLast As Integer = map.GetUpperBound(0)
-            Dim colFirst As Integer = map.GetLowerBound(1)
-            Dim colLast As Integer = map.GetUpperBound(1)
             Dim groupFirst As Integer = map.GetLowerBound(2)
             Dim groupLast As Integer = map.GetUpperBound(2)
 
-            For row As Integer = rowFirst To rowLast
-                For col As Integer = colFirst To colLast
+            For row As Integer = 1 To Me.Core.EcospaceDataStructures.InRow
+                For col As Integer = 1 To Me.Core.EcospaceDataStructures.InCol
                     For group As Integer = groupFirst To groupLast
                         sb.AppendFormat("{0};{1};{2};{3}", row, col, group, map(row, col, group))
                         sb.AppendLine()
@@ -527,7 +668,13 @@ Namespace Ecospace
                 Next
             Next
 
-            System.IO.File.WriteAllText(fileName, sb.ToString())
+            Dim tmpFile As String = fileName & ".tmp"
+            System.IO.File.WriteAllText(tmpFile, sb.ToString())
+            If System.IO.File.Exists(fileName) Then
+                System.IO.File.Replace(tmpFile, fileName, Nothing)
+            Else
+                System.IO.File.Move(tmpFile, fileName)
+            End If
 
             Dim timeStep As Integer = ts.iTimeStep
 
@@ -551,15 +698,24 @@ Namespace Ecospace
                 Next
             End If
 
+            ' Réécrire config.json (post-save) AVANT d'attendre le fichier agent
+            ' exporté par FIBE : c'est cette réécriture qui débloque le wait de
+            ' FIBE (mtime de config.json). Si on attend l'agent d'abord, on crée
+            ' un deadlock (Ecospace attend agent_{count}.csv que FIBE ne peut
+            ' écrire qu'après avoir reçu le nouveau config.json).
+            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime, iFirstYear)
+
             If timeStep > 1 Then
                 Debug.WriteLine($"Waiting for file: {targetFileName}")
                 While Not System.IO.File.Exists(fullPath)
                     System.Threading.Thread.Sleep(2000) ' Pause de 2 secondes
                 End While
                 Debug.WriteLine($"File found: {targetFileName}")
-            End If
 
-            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime, iFirstYear)
+                ' FIBE coupling: read the fishing mortality exported by FIBE for this month
+                ' (F_<count>.csv is written by FIBE at the same time as the agent file)
+                Me.LoadFIBEFishingMortality(count, basePath)
+            End If
 
         End Sub
 
@@ -664,18 +820,45 @@ Namespace Ecospace
                 If Not Directory.Exists(targetFolderPorts) Then
                     Directory.CreateDirectory(targetFolderPorts)
                 End If
-                Dim portsAll As cEcospaceLayerPort = bm.LayerPort(5)
                 Dim sbPorts As New System.Text.StringBuilder()
                 sbPorts.AppendLine("row;col;port")
+                Dim portData As Boolean()(,) = Me.Core.EcospaceDataStructures.Port
+                Dim nPortCells As Integer = 0
                 For r As Integer = 1 To bm.InRow
                     For c As Integer = 1 To bm.InCol
-                        If bm.IsModelledCell(r, c) Then
-                            Dim hasPort As Boolean = CBool(portsAll.Cell(r, c))
-                            sbPorts.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, If(hasPort, 1, 0))
-                            sbPorts.AppendLine()
-                        End If
+                        Dim hasPort As Boolean = False
+                        For iFleet As Integer = 0 To Me.Core.EcospaceDataStructures.nFleets
+                            If portData(iFleet) IsNot Nothing AndAlso portData(iFleet)(r, c) Then
+                                hasPort = True
+                                Exit For
+                            End If
+                        Next
+                        If hasPort Then nPortCells += 1
+                        sbPorts.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "{0};{1};{2}", r, c, If(hasPort, 1, 0))
+                        sbPorts.AppendLine()
                     Next
                 Next
+                Debug.WriteLine("SaveStaticMaps Ports: " & nPortCells & " port cells exported (" & Me.Core.nFleets & " fleets)")
+                Dim sbDbg As New System.Text.StringBuilder()
+                sbDbg.Append(String.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "EXPORT target={0} InRow={1} InCol={2} nFleets={3} allCells={4} total={5}",
+                    targetFolderPorts, bm.InRow, bm.InCol, Me.Core.nFleets, bm.InRow * bm.InCol, nPortCells))
+                For iFleet2 As Integer = 0 To Me.Core.EcospaceDataStructures.nFleets
+                    Dim cnt As Integer = 0
+                    If portData(iFleet2) IsNot Nothing Then
+                        For rr As Integer = 1 To bm.InRow
+                            For cc As Integer = 1 To bm.InCol
+                                If portData(iFleet2)(rr, cc) Then cnt += 1
+                            Next
+                        Next
+                    End If
+                    sbDbg.Append(String.Format(System.Globalization.CultureInfo.InvariantCulture, " | f{0}={1}", iFleet2, cnt))
+                Next
+                Try
+                    System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ewe_ports_debug.log"),
+                        sbDbg.ToString() & Environment.NewLine)
+                Catch
+                End Try
                 File.WriteAllText(Path.Combine(targetFolderPorts, "PortsMap.txt"), sbPorts.ToString())
             Catch ex As Exception
                 Debug.WriteLine("SaveStaticMaps Ports error: " & ex.Message)
@@ -686,6 +869,20 @@ Namespace Ecospace
                 If Not Directory.Exists(targetFolderHabitats) Then
                     Directory.CreateDirectory(targetFolderHabitats)
                 End If
+
+                ' Nettoyer les anciennes couches d'habitat : si le scénario change
+                ' de basemap ou de nombre de couches, les fichiers restés d'un run
+                ' précédent (grille différente) font planter FIBE (np.stack : les
+                ' formes ne correspondent pas).
+                For Each stale As String In Directory.GetFiles(targetFolderHabitats, "Habitat_*")
+                    Try
+                        File.Delete(stale)
+                        m_logger.LogInformation("Deleted stale habitat file {File}", stale)
+                    Catch ex As Exception
+                        m_logger.LogWarning("Failed to delete stale habitat file {File}: {Message}", stale, ex.Message)
+                    End Try
+                Next
+
                 Dim noHab As Integer = Math.Max(0, Me.Core.EcospaceDataStructures.NoHabitats - 1)
                 For ih As Integer = 1 To noHab
                     Dim hab As cEcospaceLayerHabitat = bm.LayerHabitat(ih)
@@ -746,9 +943,9 @@ Namespace Ecospace
             If Not File.Exists(scriptInstallPath) Then
                 Dim content As String = Me.GetInstallScriptContent()
                 File.WriteAllText(scriptInstallPath, content)
-                Console.WriteLine("Install script created at: " & scriptInstallPath)
+                m_logger.LogInformation("Install script created at {Path}", scriptInstallPath)
             Else
-                Console.WriteLine("Install script already exists at: " & scriptInstallPath)
+                m_logger.LogInformation("Install script already exists at {Path}", scriptInstallPath)
             End If
 
             Dim psi As New ProcessStartInfo()
@@ -761,8 +958,11 @@ Namespace Ecospace
             Dim p As Process = Process.Start(psi)
             p.WaitForExit()
             Dim exitCode As Integer = p.ExitCode
-            Console.WriteLine("Post save script exited with code: " & exitCode)
-
+            If exitCode = 0 Then
+                m_logger.LogInformation("Install script exited with code 0")
+            Else
+                m_logger.LogError("Install script exited with code {Code}", exitCode)
+            End If
 
         End Sub
 
@@ -776,8 +976,27 @@ Namespace Ecospace
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
             sb.AppendLine("    $runTime,")
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
-            sb.AppendLine("    [int]$FirstYear")
+            sb.AppendLine("    [int]$FirstYear,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [string]$LogFile")
             sb.AppendLine(")")
+            sb.AppendLine("")
+            sb.AppendLine("New-Item -Path (Split-Path $LogFile) -ItemType Directory -Force | Out-Null")
+            sb.AppendLine("")
+            sb.AppendLine("function Run-Python([string]$Script, [string]$Arg) {")
+            sb.AppendLine("    try {")
+            sb.AppendLine("        $out = & python $Script $Arg 2>&1 | ForEach-Object { $_.ToString() } | Out-String")
+            sb.AppendLine("        $code = $LASTEXITCODE")
+            sb.AppendLine("    } catch {")
+            sb.AppendLine("        $out = ""EXCEPTION: "" + $_.Exception.Message")
+            sb.AppendLine("        $code = 1")
+            sb.AppendLine("    }")
+            sb.AppendLine("    $out | Out-File -FilePath $LogFile -Append -Encoding utf8")
+            sb.AppendLine("    if ($code -ne 0) {")
+            sb.AppendLine("        (""ERROR: "" + $Script + "" exited with code "" + $code) | Out-File -FilePath $LogFile -Append -Encoding utf8")
+            sb.AppendLine("        exit $code")
+            sb.AppendLine("    }")
+            sb.AppendLine("}")
             sb.AppendLine("")
             sb.AppendLine("$scriptDir = $PSScriptRoot")
             sb.AppendLine("New-Item -Path (Split-Path $scriptDir) -Name ""Biomass"" -ItemType Directory -Force")
@@ -787,42 +1006,42 @@ Namespace Ecospace
 
             ' Script Python principal
             sb.AppendLine("$pythonScript = Join-Path $parentDir ""FIBE.py""")
-            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("Run-Python $pythonScript $InputFile")
 
             ' Conversion des maps statiques
             sb.AppendLine("$parentDir = Split-Path (Split-Path $scriptDir -Parent ) -Parent ")
             sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_static_map.py""")
 
             sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Depth""")
-            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("Run-Python $pythonScript $InputFile")
             sb.AppendLine("")
 
             sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Ports""")
-            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("Run-Python $pythonScript $InputFile")
             sb.AppendLine("")
 
             sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Habitats""")
-            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("Run-Python $pythonScript $InputFile")
             sb.AppendLine("")
 
             ' Conversion off vessel price
             sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_off_vessel_price.py""")
             sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""OffVesselPrice""")
-            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("Run-Python $pythonScript $InputFile")
             sb.AppendLine("")
 
             ' Conversion landings
             sb.AppendLine("$pythonScript = Join-Path $parentDir ""Convert_landings.py""")
             sb.AppendLine("$InputFile = Join-Path (Split-Path $scriptDir -Parent) ""Landings""")
-            sb.AppendLine("python $pythonScript $InputFile")
+            sb.AppendLine("Run-Python $pythonScript $InputFile")
             sb.AppendLine("")
 
-            sb.AppendLine(".\..\..\CreateJSON.ps1 $TimeStep $runTime $FirstYear")
-            sb.AppendLine("cd ..\..\FIBE\diatome")
-            sb.AppendLine("if ($TimeStep -eq 1) {")
-            sb.AppendLine("  .\venv\Scripts\Activate.ps1")
-            sb.AppendLine("  python -m src.scripts.run_simulation .\configs_json\config.json")
+            sb.AppendLine("try {")
+            sb.AppendLine("    $out = & "".\..\..\CreateJSON.ps1"" $TimeStep $runTime $FirstYear 2>&1 | Out-String")
+            sb.AppendLine("} catch {")
+            sb.AppendLine("    $out = ""EXCEPTION: "" + $_.Exception.Message")
             sb.AppendLine("}")
+            sb.AppendLine("$out | Out-File -FilePath $LogFile -Append -Encoding utf8")
 
             Return sb.ToString()
         End Function
@@ -831,33 +1050,128 @@ Namespace Ecospace
 
             Dim scriptDir As String = Path.GetDirectoryName(fileName)
             Dim scriptPath As String = Path.Combine(scriptDir, "post_save.ps1")
+            Dim logFilePath As String = Path.Combine(Path.GetDirectoryName(LoggingContext.LogFile), $"couplage-{DateTime.Now:yyyyMMdd}.log")
 
-
-            If Not File.Exists(scriptPath) Then
-                Dim content As String = Me.GetPostSaveScriptContent()
-                File.WriteAllText(scriptPath, content)
-                Console.WriteLine("Post save script created at: " & scriptPath)
-            Else
-                Console.WriteLine("Post save script already exists at: " & scriptPath)
-            End If
+            ' Toujours régénérer le script : il doit rester synchronisé avec le
+            ' code (ajout/retrait d'étapes de conversion).
+            Dim content As String = Me.GetPostSaveScriptContent()
+            File.WriteAllText(scriptPath, content)
+            m_logger.LogInformation("Post save script created at {Path}", scriptPath)
 
             Dim psi As New ProcessStartInfo()
             psi.FileName = "powershell.exe"
-            psi.Arguments = String.Format("-NoExit -ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3} {4}", scriptPath, fileName, timeStep, valueRunTime, iFirstYear)
-            If timeStep = 1 Then
-                psi.UseShellExecute = True
-            Else
-                psi.UseShellExecute = False
-            End If
+            psi.Arguments = String.Format("-ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3} {4} ""{5}""", scriptPath, fileName, timeStep, valueRunTime, iFirstYear, logFilePath)
+            psi.UseShellExecute = False
             psi.CreateNoWindow = True
             psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)
 
+            ' Attendre la fin du post-save : les conversions (FIBE.py,
+            ' CreateJSON.ps1) doivent être terminées avant qu'Ecospace n'avance
+            ' d'un pas, sinon deux conversions peuvent écrire les mêmes CSV en
+            ' parallèle et FIBE peut lire des fichiers incomplets.
             Dim p As Process = Process.Start(psi)
-            'p.WaitForExit()
-            Dim exitCode As Integer = p.ExitCode
-            Console.WriteLine("Post save script exited with code: " & exitCode)
+            p.WaitForExit()
+            If p.ExitCode = 0 Then
+                m_logger.LogInformation("Post save script exited with code 0")
+            Else
+                m_logger.LogError("Post save script exited with code {Code}. Details: {LogFile}", p.ExitCode, logFilePath)
+            End If
 
+            If timeStep = 1 Then
+                Me.StartFIBESimulation()
+            End If
 
+        End Sub
+
+        Private Sub StartFIBESimulation()
+
+            Dim baseDir As String = AppDomain.CurrentDomain.BaseDirectory
+            Dim diatomePath As String = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE", "diatome"))
+            Dim venvPython As String = Path.Combine(diatomePath, "venv", "Scripts", "python.exe")
+            Dim configPath As String = Path.Combine(diatomePath, "configs_json", "config.json")
+
+            m_logger.LogInformation("Starting FIBE simulation: {Python} -m src.scripts.run_simulation {Config}", venvPython, configPath)
+
+            If Not File.Exists(venvPython) Then
+                Me.WriteFibeLog("ERROR: FIBE venv python not found: " & venvPython)
+                m_logger.LogError("FIBE venv python not found: {Python}", venvPython)
+                Return
+            End If
+
+            ' Lancement détaché : la simulation ne doit pas s'exécuter dans le
+            ' script post-save (qui doit se terminer rapidement pour ne pas
+            ' bloquer les conversions suivantes).
+            Dim psi As New ProcessStartInfo()
+            psi.FileName = venvPython
+            psi.Arguments = String.Format("-m src.scripts.run_simulation ""{0}""", configPath)
+            psi.WorkingDirectory = diatomePath
+            psi.UseShellExecute = False
+            psi.CreateNoWindow = True
+
+            ' Rediriger stdout/stderr : sans cela, le traceback Python est
+            ' perdu. Les lignes sont écrites dans Logs\fibe-YYYYMMDD.log.
+            psi.RedirectStandardOutput = True
+            psi.RedirectStandardError = True
+            psi.StandardOutputEncoding = System.Text.Encoding.UTF8
+            psi.StandardErrorEncoding = System.Text.Encoding.UTF8
+
+            Dim p As Process = Nothing
+            Try
+                p = Process.Start(psi)
+            Catch ex As Exception
+                Me.WriteFibeLog("ERROR: failed to start FIBE process: " & ex.Message)
+                m_logger.LogError(ex, "Failed to start FIBE process")
+                Return
+            End Try
+            p.EnableRaisingEvents = True
+
+            AddHandler p.OutputDataReceived, AddressOf Me.OnFibeStdOut
+            AddHandler p.ErrorDataReceived, AddressOf Me.OnFibeStdErr
+            p.BeginOutputReadLine()
+            p.BeginErrorReadLine()
+
+            ' Ne pas attendre la fin : FIBE tourne en parallèle d'Ecospace tout
+            ' le long du couplage. L'exit code est loggé de façon asynchrone.
+            AddHandler p.Exited, Sub(sender As Object, e As EventArgs)
+                                     Dim proc As Process = DirectCast(sender, Process)
+                                     If proc.ExitCode = 0 Then
+                                         Me.WriteFibeLog("INFO: FIBE simulation exited normally (code 0)")
+                                         m_logger.LogInformation("FIBE simulation exited normally (code 0)")
+                                     Else
+                                         Me.WriteFibeLog(String.Format("ERROR: FIBE simulation exited with code {0}", proc.ExitCode))
+                                         m_logger.LogError("FIBE simulation exited with code {Code}", proc.ExitCode)
+                                     End If
+                                     RemoveHandler p.OutputDataReceived, AddressOf Me.OnFibeStdOut
+                                     RemoveHandler p.ErrorDataReceived, AddressOf Me.OnFibeStdErr
+                                 End Sub
+
+            Me.WriteFibeLog("INFO: FIBE simulation launched " & DateTime.Now.ToString("HH:mm:ss"))
+            m_logger.LogInformation("FIBE simulation launched")
+
+        End Sub
+
+        Private Sub OnFibeStdOut(sender As Object, e As DataReceivedEventArgs)
+            If Not String.IsNullOrEmpty(e.Data) Then Me.WriteFibeLog(e.Data)
+        End Sub
+
+        Private Sub OnFibeStdErr(sender As Object, e As DataReceivedEventArgs)
+            If Not String.IsNullOrEmpty(e.Data) Then Me.WriteFibeLog(e.Data)
+        End Sub
+
+        Private Function FibeLogFilePath() As String
+            Return Path.Combine(Path.GetDirectoryName(LoggingContext.LogFile), $"fibe-{DateTime.Now:yyyyMMdd}.log")
+        End Function
+
+        Private Sub WriteFibeLog(line As String)
+            Try
+                Dim logPath As String = Me.FibeLogFilePath()
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath))
+                SyncLock m_fibeLogSync
+                    File.AppendAllText(logPath, String.Format("[{0}] {1}{2}", DateTime.Now.ToString("HH:mm:ss"), line, Environment.NewLine))
+                End SyncLock
+            Catch ex As Exception
+                m_logger.LogError(ex, "Failed to write FIBE log")
+            End Try
         End Sub
 
 

@@ -2787,6 +2787,8 @@ Public Class cEIIXMLDataSource
                 ecospaceDS.FleetDBID(iFleet) = CInt(drow("FleetID"))
                 ecospaceDS.EcopathFleetDBID(iFleet) = CInt(drow("EcopathFleetID"))
                 ecospaceDS.EffPower(iFleet) = CSng(drow("EffPower"))
+                ' FIBE coupling: is this fleet managed by FIBE
+                ecospaceDS.isFIBEFleet(iFleet) = CBool(Me.ReadSafe(drow, "IsFIBEFleet", False))
 
                 ' Read port map for a given fleet and land cells only
                 strMap = Me.ReadSafe(drow, "PortMap", "")

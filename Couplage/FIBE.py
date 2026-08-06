@@ -54,7 +54,7 @@ def write_species_csv(
     biomass_map: Dict[int, Dict[int, float]],
     output_dir: Path,
 ) -> None:
-    """Write a single species biomass map to a CSV file.
+    """Write a single species biomass map to a CSV file, atomically.
 
     Args:
         species: Species (group) identifier used in the filename.
@@ -66,7 +66,8 @@ def write_species_csv(
         {col for row_data in biomass_map.values() for col in row_data.keys()}
     )
     output_path = output_dir / f"biomass_map_{species}.csv"
-    with open(output_path, "w", newline="") as f:
+    tmp_path = output_dir / f".biomass_map_{species}.csv.tmp"
+    with open(tmp_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([species])
         writer.writerow([""] + [str(col) for col in all_cols])
@@ -77,6 +78,8 @@ def write_species_csv(
                 value = row_values.get(col, 0.0)
                 row_data.append("0" if abs(value) < 1e-10 else value)
             writer.writerow(row_data)
+    # Atomic publish: readers never observe a partially written file.
+    os.replace(tmp_path, output_path)
 
 
 def convert_biomass_map(
@@ -94,6 +97,8 @@ def convert_biomass_map(
     """
     path = Path(biomass_map_path)
     output_dir = path.parent.parent / "Biomass"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     species_data = parse_biomass_map(biomass_map_path)
     if max_workers is None:
         max_workers = min(32, (os.cpu_count() or 4) + 4)
@@ -108,6 +113,17 @@ def convert_biomass_map(
                 future.result()
             except Exception as e:
                 print(f"Error processing species: {e}")
+
+    # Clean up leftover CSVs from species that no longer exist, so a stale
+    # file can never be picked up by config.json. Files that are still
+    # present were atomically replaced, so concurrent readers are safe.
+    new_species = set(species_data.keys())
+    for old in output_dir.glob("biomass_map_*.csv"):
+        if old.stem.replace("biomass_map_", "") not in new_species:
+            try:
+                old.unlink()
+            except OSError:
+                pass
     return species_data
 
 

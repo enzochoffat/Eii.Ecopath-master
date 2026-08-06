@@ -1332,22 +1332,34 @@ Public Class cSpaceSolver
                     'Next value of catch, depends on what gear was used:
                     For iFlt = 1 To Me.m_PathData.NumFleet
                         ' BUas Marin Hekman found that catch data was incorrectly aggregated here. Good catch.
-                        If m_Data.IsFished(iFlt, iRow, iCol) Then
-                            If Me.m_PathData.Landing(iFlt, iGrp) + Me.m_PathData.Discard(iFlt, iGrp) > 0 Then
-                                'First get catch
+                    'FIBE coupling: FIBE-managed fleets are not gated by IsFished or the Ecopath base catch,
+                    'the fishing mortality provided by FIBE is authoritative for those fleets
+                    Dim bIsFIBEFleet As Boolean = Me.m_Data.isFIBEFleetManaged(iFlt)
+                    If bIsFIBEFleet OrElse m_Data.IsFished(iFlt, iRow, iCol) Then
+                        If bIsFIBEFleet OrElse Me.m_PathData.Landing(iFlt, iGrp) + Me.m_PathData.Discard(iFlt, iGrp) > 0 Then
+                            'First get catch
+                            'FIBE coupling: for FIBE-managed fleets the catch is computed from the fishing mortality provided by FIBE
+                            If bIsFIBEFleet Then
+                                cellCatch = Biomass(iGrp) * Me.m_Data.FtotFIBE(iFlt, iGrp, iRow, iCol)
+                            Else
                                 cellCatch = Biomass(iGrp) * Me.m_Data.EffortSpace(iFlt, iRow, iCol) * Me.m_SimData.relQ(iFlt, iGrp) * (Me.m_SimData.PropLandedTime(iFlt, iGrp) + Me.m_SimData.PropDiscardTime(iFlt, iGrp))
-                                Me.m_Data.CatchFleetMap(iRow, iCol, iFlt) += cellCatch
-                                'Sum the total catch by gear
-                                Me.ResultsByFleet(eSpaceResultsFleets.CatchBio, iFlt) += cellCatch
-                                'sum all fleets
-                                Me.ResultsByFleet(eSpaceResultsFleets.CatchBio, 0) += cellCatch
+                            End If
+                            Me.m_Data.CatchFleetMap(iRow, iCol, iFlt) += cellCatch
+                            'Sum the total catch by gear
+                            Me.ResultsByFleet(eSpaceResultsFleets.CatchBio, iFlt) += cellCatch
+                            'sum all fleets
+                            Me.ResultsByFleet(eSpaceResultsFleets.CatchBio, 0) += cellCatch
 
-                                Me.ResultsByFleetGroup(eSpaceResultsFleetsGroups.CatchBio, iFlt, iGrp) += cellCatch
-                                'sum all fleets into the zero fleet index
-                                Me.ResultsByFleetGroup(eSpaceResultsFleetsGroups.CatchBio, 0, iGrp) += cellCatch
+                            Me.ResultsByFleetGroup(eSpaceResultsFleetsGroups.CatchBio, iFlt, iGrp) += cellCatch
+                            'sum all fleets into the zero fleet index
+                            Me.ResultsByFleetGroup(eSpaceResultsFleetsGroups.CatchBio, 0, iGrp) += cellCatch
 
+                            If bIsFIBEFleet Then
+                                cellLandings = cellCatch * Me.m_SimData.PropLandedTime(iFlt, iGrp)
+                            Else
                                 cellLandings = Biomass(iGrp) * Me.m_Data.EffortSpace(iFlt, iRow, iCol) * Me.m_SimData.relQ(iFlt, iGrp) * Me.m_SimData.PropLandedTime(iFlt, iGrp)
-                                Me.Landings(iGrp, iFlt) += cellLandings
+                            End If
+                            Me.Landings(iGrp, iFlt) += cellLandings
 
                                 cellValue = cellLandings * Me.m_Ecosim.MarketValue(iGrp, iFlt, iCumTime, iYear)
 
@@ -1369,7 +1381,11 @@ Public Class cSpaceSolver
 
                                 'Discards map used by the Biodiversity plugin
                                 'Include discards that survived
-                                cellDiscards = Biomass(iGrp) * Me.m_Data.EffortSpace(iFlt, iRow, iCol) * Me.m_SimData.relQ(iFlt, iGrp) * (1 - Me.m_SimData.PropLandedTime(iFlt, iGrp))
+                                If bIsFIBEFleet Then
+                                    cellDiscards = cellCatch * (1 - Me.m_SimData.PropLandedTime(iFlt, iGrp))
+                                Else
+                                    cellDiscards = Biomass(iGrp) * Me.m_Data.EffortSpace(iFlt, iRow, iCol) * Me.m_SimData.relQ(iFlt, iGrp) * (1 - Me.m_SimData.PropLandedTime(iFlt, iGrp))
+                                End If
                                 Me.m_Data.DiscardsMap(iRow, iCol, iGrp) += cellDiscards
 
                                 If (Me.m_Data.CatchGroupFleetMap(iFlt, iGrp) Is Nothing) Then
@@ -3133,13 +3149,21 @@ Public Class cSpaceSolver_LocalMemory
                         'Debug.Assert(isFished(iFlt, iRow, iCol) = Me.m_Data.IsFished(iFlt, iRow, iCol), "isFished() != isFished() Really!")
                         'Is this cell fished by this fleet
                         'If isFished(iFlt, iRow, iCol) Then
-                        If Me.m_Data.IsFished(iFlt, iRow, iCol) Then
+                        'FIBE coupling: FIBE-managed fleets are not gated by IsFished or the Ecopath base catch,
+                        'the fishing mortality provided by FIBE is authoritative for those fleets
+                        Dim bIsFIBEFleet As Boolean = Me.m_Data.isFIBEFleetManaged(iFlt)
+                        If bIsFIBEFleet OrElse Me.m_Data.IsFished(iFlt, iRow, iCol) Then
 
                             'Is this group caught by this fleet (Landing(iFlt, iGrp) + Discard(iFlt, iGrp) > 0)
                             'If isCaught(iFlt, iGrp) Then
-                            If Me.m_PathData.Landing(iFlt, iGrp) + Me.m_PathData.Discard(iFlt, iGrp) > 0 Then
+                            If bIsFIBEFleet OrElse Me.m_PathData.Landing(iFlt, iGrp) + Me.m_PathData.Discard(iFlt, iGrp) > 0 Then
                                 'First get catch
-                                cellCatch = Biomass(iGrp) * Me.EffortSpace(iFlt, 0) * m_SimData.relQ(iFlt, iGrp) ' * m_Data.Width(iRow)
+                                'FIBE coupling: for FIBE-managed fleets the catch is computed from the fishing mortality provided by FIBE
+                                If bIsFIBEFleet Then
+                                    cellCatch = Biomass(iGrp) * Me.m_Data.FtotFIBE(iFlt, iGrp, iRow, iCol)
+                                Else
+                                    cellCatch = Biomass(iGrp) * Me.EffortSpace(iFlt, 0) * m_SimData.relQ(iFlt, iGrp) ' * m_Data.Width(iRow)
+                                End If
 
                                 'Sum the total catch by gear
                                 Me.ResultsByFleet(eSpaceResultsFleets.CatchBio, iFlt) += cellCatch

@@ -3087,6 +3087,9 @@ Public Class cEcoSpace
 
             Me.EcoSpaceData.allocate(Me.EcoSpaceData.Ftot, Me.EcoSpaceData.NGroups, Me.EcoSpaceData.InRow, Me.EcoSpaceData.InCol)
 
+            'FIBE coupling: fishing mortality by fleet,group,row,col, prefilled into Ftot each timestep
+            Me.EcoSpaceData.allocate(Me.EcoSpaceData.FtotFIBE, Me.EcoSpaceData.nFleets, Me.EcoSpaceData.NGroups, Me.EcoSpaceData.InRow, Me.EcoSpaceData.InCol)
+
             Me.EcoSpaceData.allocate(Me.EcoSpaceData.Landings, Me.EcoSpaceData.NGroups, Me.EcoSpaceData.nFleets)
 
             Me.EcoSpaceData.allocate(Me.EcoSpaceData.RelMoveFitGroup, Me.EcoSpaceData.NGroups, Me.EcoSpaceData.InRow + 1, Me.EcoSpaceData.InCol + 1)
@@ -4423,6 +4426,8 @@ exitline:
                 For iFlt As Integer = arguments.iFirst To arguments.iLast
                     'check the bounds
                     If (iFlt < 1) Or (iFlt > Me.EcoSpaceData.nFleets) Then Exit For
+                    'FIBE coupling: skip the fleets managed by FIBE, their fishing mortality is prefilled into Ftot
+                    If Me.EcoSpaceData.isFIBEFleetManaged(iFlt) Then Continue For
                     'System.Console.WriteLine("  Fleet " & iFlt.ToString)
 
                     TotE = Me.EcoSpaceData.TotEffort(iFlt) * Me.EcoSpaceData.SEmult(iFlt)
@@ -4748,6 +4753,9 @@ exitline:
                 Debug.Assert(iFlt > 0 And iFlt <= Me.EcoSpaceData.nFleets, "cEcoSpace.getNextFleet(fleetIndex) Returned an invalid fleet index.")
                 If (iFlt < 1) Or (iFlt > Me.EcoSpaceData.nFleets) Then Exit Do
 
+                'FIBE coupling: skip the fleets managed by FIBE, their fishing mortality is prefilled into Ftot
+                If Me.EcoSpaceData.isFIBEFleetManaged(iFlt) Then Continue Do
+
                 TotE = Me.EcoSpaceData.TotEffort(iFlt) * Me.EcoSpaceData.SEmult(iFlt)
                 'set the total effort by zone
                 For iZone As Integer = 0 To Me.EcoSpaceData.nEffZones
@@ -4864,6 +4872,32 @@ exitline:
 
 
     ''' <summary>
+    ''' Prefill <see cref="cEcoSpaceDataStructures.Ftot"/> with the fishing mortality provided
+    ''' by the FIBE coupling for the FIBE-managed fleets.
+    ''' </summary>
+    ''' <remarks>Must be called right after Ftot is cleared, before the gravity model
+    ''' computation adds the Ecopath/Ecosim fleet mortalities. Ftot is additive per fleet,
+    ''' so the FIBE mortality is added to the EwE computed mortality.</remarks>
+    Private Sub PrefillFtotFromFIBE()
+
+        If Me.EcoSpaceData.FtotFIBE Is Nothing Then Return
+        If Me.EcoSpaceData.isFIBEFleet Is Nothing Then Return
+
+        For iFlt As Integer = 1 To Me.EcoSpaceData.nFleets
+            If Me.EcoSpaceData.isFIBEFleetManaged(iFlt) Then
+                For iGrp As Integer = 1 To Me.EcoSpaceData.NGroups
+                    For iRow As Integer = 1 To Me.EcoSpaceData.InRow
+                        For iCol As Integer = 1 To Me.EcoSpaceData.InCol
+                            Me.EcoSpaceData.Ftot(iGrp, iRow, iCol) += Me.EcoSpaceData.FtotFIBE(iFlt, iGrp, iRow, iCol)
+                        Next iCol
+                    Next iRow
+                Next iGrp
+            End If
+        Next iFlt
+
+    End Sub
+
+    ''' <summary>
     ''' Run the PredictEffortDistribution on multiple threads
     ''' </summary>
     ''' <param name="iMonth"></param>
@@ -4884,6 +4918,9 @@ exitline:
 
         Array.Clear(Me.EcoSpaceData.Ftot, 0, Me.EcoSpaceData.Ftot.Length)
         'Array.Clear(Me.EcoSpaceData.EffortSpace, 0, Me.EcoSpaceData.EffortSpace.Length)
+
+        'FIBE coupling: prefill Ftot with the fishing mortality provided by FIBE for the FIBE-managed fleets
+        Me.PrefillFtotFromFIBE()
 
         'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         'First run the Effort Distrubution threads by Fleet
@@ -5003,6 +5040,9 @@ exitline:
         'GC.Collect()
         Array.Clear(Me.EcoSpaceData.Ftot, 0, Me.EcoSpaceData.Ftot.Length)
         Array.Clear(Me.EcoSpaceData.EffortSpace, 0, Me.EcoSpaceData.EffortSpace.Length)
+
+        'FIBE coupling: prefill Ftot with the fishing mortality provided by FIBE for the FIBE-managed fleets
+        Me.PrefillFtotFromFIBE()
 
 
         'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -5144,6 +5184,9 @@ exitline:
 
                 For iflt As Integer = 1 To Me.EcoSpaceData.nFleets
 
+                    'FIBE coupling: skip the fleets managed by FIBE, their fishing mortality is prefilled into Ftot
+                    If Me.EcoSpaceData.isFIBEFleetManaged(iflt) Then Continue For
+
                     'VC19Aug98: Fishing in water, not in MPA unless the MPA is fished, and only if this gear operate in this habitat or in all habitats
                     If Me.EcoSpaceData.IsFished(iflt, irow, jcol) Then
                         For igrp As Integer = 1 To Me.EcoSpaceData.NGroups
@@ -5196,6 +5239,8 @@ exitline:
         Dim iTime As Integer = Me.EcoSpaceData.TimeNow * cCore.N_MONTHS
 
         For ig = 1 To Me.EcoSpaceData.nFleets
+            'FIBE coupling: skip the fleets managed by FIBE, their fishing mortality is prefilled into Ftot
+            If Me.EcoSpaceData.isFIBEFleetManaged(ig) Then Continue For
             'jb Attract() gets cleared out for each fleet
             ReDim Attract(Me.EcoSpaceData.InRow, Me.EcoSpaceData.InCol)
             TotAttract = 0.0000000001
@@ -5297,6 +5342,8 @@ exitline:
         Dim iTime As Integer = Me.EcoSpaceData.TimeNow * cCore.N_MONTHS
 
         For ig = 1 To Me.EcoSpaceData.nFleets
+            'FIBE coupling: skip the fleets managed by FIBE, their fishing mortality is prefilled into Ftot
+            If Me.EcoSpaceData.isFIBEFleetManaged(ig) Then Continue For
             'jb Attract() gets cleared out for each fleet
             ReDim Attract(Me.EcoSpaceData.InRow, Me.EcoSpaceData.InCol)
             TotAttract = 0.0000000001
@@ -9372,6 +9419,8 @@ exitline:
                 For iFlt As Integer = arguments.iFirst To arguments.iLast
                     'check the bounds
                     If (iFlt < 1) Or (iFlt > Me.m_Data.nFleets) Then Exit For
+                    'FIBE coupling: skip the fleets managed by FIBE, their fishing mortality is prefilled into Ftot
+                    If Me.m_Data.isFIBEFleetManaged(iFlt) Then Continue For
                     'System.Console.WriteLine("  Fleet " & iFlt.ToString)
 
                     For iArea As Integer = 1 To Me.m_Data.nEffZones

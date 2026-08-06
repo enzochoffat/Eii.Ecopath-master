@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import DefaultDict
 
 
-def read_off_vessel_price(file_path: str) -> DefaultDict[int, DefaultDict[int, float]]:
+def read_off_vessel_price(file_path: str) -> DefaultDict[str, DefaultDict[str, float]]:
     """Parse off-vessel price text file into a nested dict.
 
     Args:
@@ -23,7 +23,7 @@ def read_off_vessel_price(file_path: str) -> DefaultDict[int, DefaultDict[int, f
     Returns:
         Nested dict: data[group][fleet] = price.
     """
-    data: DefaultDict[int, DefaultDict[int, float]] = defaultdict(
+    data: DefaultDict[str, DefaultDict[str, float]] = defaultdict(
         lambda: defaultdict(float)
     )
     with open(file_path, "r", newline="") as f:
@@ -34,8 +34,8 @@ def read_off_vessel_price(file_path: str) -> DefaultDict[int, DefaultDict[int, f
             if len(parts) < 3:
                 print(f"Skipping line {line_number}: {line}")
                 continue
-            fleet = int(parts[0])
-            group = int(parts[1])
+            fleet = parts[0].strip()
+            group = parts[1].strip()
             value = float(parts[2])
             data[group][fleet] = value
     return data
