@@ -1264,28 +1264,28 @@ Namespace Ecospace
 
                 Dim waitStart As DateTime = DateTime.UtcNow
                 Dim waitTimeout As TimeSpan = TimeSpan.FromMinutes(5) ' 5 minutes timeout
-                
+
                 While Not System.IO.File.Exists(fullPath)
                     If DateTime.UtcNow - waitStart > waitTimeout Then
                         Dim msg As String = String.Format(
                             "FIBE coupling: timeout waiting for {0}" &
-                            " after {5} minutes. Continuing without" &
+                            " after {1} minutes. Continuing without" &
                             " fishing mortality update.",
                             targetFileName, waitTimeout.TotalMinutes
                             )
-                            Me.WriteFibeLog("ERROR", & msg)
-                            m_logger.LogError(msg)
-                            Exit While
-                        End If
-                        System.Threading.Thread.Sleep(2000) ' Pause de 2 secondes
+                        Me.WriteFibeLog("ERROR: " & msg)
+                        m_logger.LogError(msg)
+                        Exit While
+                    End If
+                    System.Threading.Thread.Sleep(2000) ' Pause de 2 secondes
                 End While
 
                 If System.IO.File.Exists(fullPath) Then
                     Debug.WriteLine($"File found: {targetFileName}")
 
-                ' FIBE coupling: read the fishing mortality exported by FIBE for this month
-                ' (F_<count>.csv is written by FIBE at the same time as the agent file)
-                Me.LoadFIBEFishingMortality(count, basePath)
+                    ' FIBE coupling: read the fishing mortality exported by FIBE for this month
+                    ' (F_<count>.csv is written by FIBE at the same time as the agent file)
+                    Me.LoadFIBEFishingMortality(count, basePath)
                 End If
             End If
 
@@ -1771,6 +1771,18 @@ Namespace Ecospace
             psi.RedirectStandardError = True
             psi.StandardOutputEncoding = System.Text.Encoding.UTF8
             psi.StandardErrorEncoding = System.Text.Encoding.UTF8
+            
+            Dim biomassOutDir As String = Path.Combine(diatomePath, "results", "biomass")
+            If Directory.Exists(biomassOutDir) Then
+                For Each stale As String in Directory.GetFiles(biomassOutDir, "*.csv")
+                    Try
+                        File.Delete(stale)
+                        m_logger.LogInformation("Deleted stale biomass file {File}", stale)
+                    Catch ex As IOException
+                        m_logger.LogWarning(ex, "Failed to delete stale biomass file {File}", stale)
+                    End Try
+                Next
+            End If
 
             Dim p As Process = Nothing
             Try

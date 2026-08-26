@@ -137,8 +137,17 @@ try {
     # Écriture temporaire
     $jsonOutput | Set-Content -Path $tempJsonPath -NoNewline
     
-    # Remplacement atomique
-    Move-Item -Path $tempJsonPath -Destination $finalJsonPath -Force
+    $moved = $false
+    for ($attempt = 0; $attempt -lt 20 -and -not $moved; $attempt++) {
+        try {
+            # Remplacement atomique
+            Move-Item -Path $tempJsonPath -Destination $finalJsonPath -Force -ErrorAction Stop
+            $moved = $true
+        } catch [System.IO.IOException] {
+            Start-Sleep -Milliseconds 100
+        }
+    }
+    if (-not $moved) { throw "config.json is locked after multiple attempts." }
     
     Write-Host "Configuration mise à jour avec succès : $finalJsonPath"
 }
