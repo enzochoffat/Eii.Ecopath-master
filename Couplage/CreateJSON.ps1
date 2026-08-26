@@ -31,6 +31,7 @@ $maps = $config.maps
 $config.simulation | Add-Member -Name "step" -Value $TimeStep -MemberType NoteProperty -Force
 $config.simulation | Add-Member -Name "coupling" -Value $true -MemberType NoteProperty -Force
 $config.simulation | Add-Member -Name "duration_years" -Value $runTime -MemberType NoteProperty -Force
+if ($FirstYear -le 0) { $FirstYear = 2000 }
 $config.simulation | Add-Member -Name "start_date" -Value "$FirstYear-01-01" -MemberType NoteProperty -Force
 
 # --- 2. Fonctions Helper pour la réduction de code ---
@@ -110,6 +111,22 @@ if (Test-Path $landingsPath) {
     $config.maps.species_tables | Add-Member -Name "catchability" -Value $landingsPath -MemberType NoteProperty -Force
 } else {
     Write-Warning "Fichier landings introuvable : $landingsPath"
+}
+
+# Restricted areas (zones restreintes), exportées par EwE dans restricted_zones.json
+$restrictedZonesPath = Join-Path $scriptDir "Data\restricted_zones.json"
+if (Test-Path $restrictedZonesPath) {
+    $restrictedZones = Get-Content -Path $restrictedZonesPath -Raw | ConvertFrom-Json
+    if ($restrictedZones.PSObject.Properties.Match('restricted_area_map')) {
+        $config.maps | Add-Member -Name "restricted_area_map" -Value $restrictedZones.restricted_area_map -MemberType NoteProperty -Force
+        Write-Host "Zones restreintes (map) appliquées depuis restricted_zones.json"
+    }
+    if ($restrictedZones.PSObject.Properties.Match('restricted_area_vector')) {
+        $config.maps | Add-Member -Name "restricted_area_vector" -Value $restrictedZones.restricted_area_vector -MemberType NoteProperty -Force
+        Write-Host "Zones restreintes (vector) appliquées depuis restricted_zones.json"
+    }
+} else {
+    Write-Warning "restricted_zones.json introuvable : $restrictedZonesPath"
 }
 
 # --- 4. Écriture Atomique ---

@@ -106,6 +106,19 @@ Namespace Ecospace
         ' FIBE coupling: fleet selection for the fleets managed by FIBE
         Private WithEvents m_clbFIBEFleets As CheckedListBox = Nothing
 
+        ' FIBE coupling: restricted areas tab
+        Private WithEvents m_tcMain As TabControl = Nothing
+        Private WithEvents m_tpEcospace As TabPage = Nothing
+        Private WithEvents m_tpRestrictedZones As TabPage = Nothing
+        Private WithEvents m_dgvRestrictedZones As DataGridView = Nothing
+        Private WithEvents m_btnAddZone As Button = Nothing
+        Private WithEvents m_btnRemoveZone As Button = Nothing
+        Private WithEvents m_btnBrowseZone As Button = Nothing
+        Private WithEvents m_cbVectorFleet As ComboBox = Nothing
+        Private WithEvents m_dgvVector As DataGridView = Nothing
+        Private m_cfgRestrictedAreas As cRestrictedAreasConfig = Nothing
+        Private m_bLoadingVector As Boolean = False
+
 #End Region ' Private vars
 
 #Region " Form events "
@@ -148,6 +161,11 @@ Namespace Ecospace
 
             ' FIBE coupling: build the fleet selection list
             Me.InitializeFIBEFleetList()
+
+            ' FIBE coupling: restricted areas tab
+            Me.InitializeRestrictedAreasTab()
+            Me.m_cfgRestrictedAreas = parms.GetRestrictedAreasConfig()
+            Me.LoadRestrictedZones()
 
             Me.m_clbAutosave.Items.Clear()
             For n As Integer = 1 To parms.nResultWriters
@@ -533,6 +551,13 @@ Namespace Ecospace
             Me.m_plUseOtherModel.Controls.Add(Me.m_clbFIBEFleets)
             Me.m_plUseOtherModel.Controls.SetChildIndex(Me.m_clbFIBEFleets, 0)
 
+            ' Fit the list in the visible area of the window: the panel sits in the last
+            ' AutoSize row of the form layout, a fixed 120px list would extend below the
+            ' window edge. When the available space is smaller than the content, the list
+            ' scrolls internally so every fleet stays reachable.
+            Dim nAvailable As Integer = Me.ClientSize.Height - (Me.m_plUseOtherModel.Top + Me.m_clbFIBEFleets.Top) - 40
+            Me.m_clbFIBEFleets.Height = Math.Max(40, Math.Min(120, nAvailable))
+
         End Sub
 
         ''' -------------------------------------------------------------------
@@ -552,6 +577,533 @@ Namespace Ecospace
 
             ds.isFIBEFleet(iFleet) = (e.NewValue = CheckState.Checked)
 
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Wrap the existing Ecospace parameter content and the new restricted
+        ''' areas editor in a two-tab layout. The existing content is moved
+        ''' unchanged into the first tab page.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub InitializeRestrictedAreasTab()
+
+            If (Me.UIContext Is Nothing) Then Return
+
+            Me.m_tcMain = New TabControl()
+            Me.m_tcMain.Dock = DockStyle.Fill
+            Me.m_tcMain.Name = "m_tcMain"
+
+            Me.m_tpEcospace = New TabPage()
+            Me.m_tpEcospace.Text = "Ecospace"
+            Me.m_tpEcospace.Dock = DockStyle.Fill
+            Me.m_tpEcospace.Name = "m_tpEcospace"
+
+            Me.m_tpRestrictedZones = New TabPage()
+            Me.m_tpRestrictedZones.Text = "Restricted zones (FIBE)"
+            Me.m_tpRestrictedZones.Dock = DockStyle.Fill
+            Me.m_tpRestrictedZones.Name = "m_tpRestrictedZones"
+
+            ' Move the existing content into the first tab page
+            Me.Controls.Remove(Me.m_tlpStuff)
+            Me.m_tpEcospace.Controls.Add(Me.m_tlpStuff)
+            Me.m_tlpStuff.Dock = DockStyle.Fill
+
+            Me.BuildRestrictedZonesTab()
+
+            Me.m_tcMain.TabPages.Add(Me.m_tpEcospace)
+            Me.m_tcMain.TabPages.Add(Me.m_tpRestrictedZones)
+            Me.Controls.Add(Me.m_tcMain)
+            Me.m_tcMain.BringToFront()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Build the "Restricted zones (FIBE)" tab content: a grid of named
+        ''' zones with their shapefile path, and an add/remove/browse button row,
+        ''' plus the per-fleet seasonal restriction grid.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub BuildRestrictedZonesTab()
+
+            Dim tlpRoot As New TableLayoutPanel()
+            tlpRoot.Dock = DockStyle.Fill
+            tlpRoot.ColumnCount = 1
+            tlpRoot.RowCount = 2
+            tlpRoot.RowStyles.Add(New RowStyle(SizeType.Percent, 45))
+            tlpRoot.RowStyles.Add(New RowStyle(SizeType.Percent, 55))
+            tlpRoot.Padding = New Padding(6)
+            tlpRoot.Name = "m_tlpRestrictedZones"
+
+            ' ----------------------------------------------------------------
+            ' Section 1: geographic zones
+            ' ----------------------------------------------------------------
+            Dim gbZones As New GroupBox()
+            gbZones.Text = "Restricted areas (shapefiles)"
+            gbZones.Dock = DockStyle.Fill
+            gbZones.Name = "m_gbRestrictedZones"
+
+            Dim tlpZones As New TableLayoutPanel()
+            tlpZones.Dock = DockStyle.Fill
+            tlpZones.ColumnCount = 1
+            tlpZones.RowCount = 3
+            tlpZones.RowStyles.Add(New RowStyle(SizeType.Absolute, 24))
+            tlpZones.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+            tlpZones.RowStyles.Add(New RowStyle(SizeType.Absolute, 40))
+            tlpZones.Padding = New Padding(6)
+            tlpZones.Name = "m_tlpZoneList"
+
+            Dim lbl As New Label()
+            lbl.Text = "Geographic zones used as restricted areas by the FIBE coupling (one shapefile per zone)."
+            lbl.AutoSize = True
+            lbl.Dock = DockStyle.Top
+            tlpZones.Controls.Add(lbl, 0, 0)
+
+            Me.m_dgvRestrictedZones = New DataGridView()
+            Me.m_dgvRestrictedZones.Dock = DockStyle.Fill
+            Me.m_dgvRestrictedZones.AllowUserToAddRows = True
+            Me.m_dgvRestrictedZones.AllowUserToDeleteRows = True
+            Me.m_dgvRestrictedZones.RowHeadersVisible = False
+            Me.m_dgvRestrictedZones.MultiSelect = False
+            Me.m_dgvRestrictedZones.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            Me.m_dgvRestrictedZones.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            Me.m_dgvRestrictedZones.EditMode = DataGridViewEditMode.EditOnEnter
+            Me.m_dgvRestrictedZones.Name = "m_dgvRestrictedZones"
+
+            Dim colName As New DataGridViewTextBoxColumn()
+            colName.HeaderText = "Zone name"
+            colName.FillWeight = 30
+            Me.m_dgvRestrictedZones.Columns.Add(colName)
+
+            Dim colPath As New DataGridViewTextBoxColumn()
+            colPath.HeaderText = "Shapefile path"
+            colPath.ReadOnly = True
+            colPath.FillWeight = 70
+            Me.m_dgvRestrictedZones.Columns.Add(colPath)
+
+            tlpZones.Controls.Add(Me.m_dgvRestrictedZones, 0, 1)
+
+            Dim tlpButtons As New TableLayoutPanel()
+            tlpButtons.Dock = DockStyle.Fill
+            tlpButtons.ColumnCount = 4
+            tlpButtons.RowCount = 1
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 90))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 90))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 100))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+            tlpButtons.Name = "m_tlpZoneButtons"
+
+            Me.m_btnAddZone = New Button()
+            Me.m_btnAddZone.Text = "Add"
+            Me.m_btnAddZone.Width = 80
+            Me.m_btnAddZone.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnAddZone.Name = "m_btnAddZone"
+            tlpButtons.Controls.Add(Me.m_btnAddZone, 0, 0)
+
+            Me.m_btnRemoveZone = New Button()
+            Me.m_btnRemoveZone.Text = "Remove"
+            Me.m_btnRemoveZone.Width = 80
+            Me.m_btnRemoveZone.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnRemoveZone.Name = "m_btnRemoveZone"
+            tlpButtons.Controls.Add(Me.m_btnRemoveZone, 1, 0)
+
+            Me.m_btnBrowseZone = New Button()
+            Me.m_btnBrowseZone.Text = "Browse..."
+            Me.m_btnBrowseZone.Width = 90
+            Me.m_btnBrowseZone.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnBrowseZone.Name = "m_btnBrowseZone"
+            tlpButtons.Controls.Add(Me.m_btnBrowseZone, 2, 0)
+
+            tlpZones.Controls.Add(tlpButtons, 0, 2)
+
+            gbZones.Controls.Add(tlpZones)
+
+            ' ----------------------------------------------------------------
+            ' Section 2: per-fleet seasonal restrictions
+            ' ----------------------------------------------------------------
+            Dim gbVector As New GroupBox()
+            gbVector.Text = "Seasonal restrictions (per fleet)"
+            gbVector.Dock = DockStyle.Fill
+            gbVector.Name = "m_gbRestrictedVector"
+
+            Dim tlpVector As New TableLayoutPanel()
+            tlpVector.Dock = DockStyle.Fill
+            tlpVector.ColumnCount = 2
+            tlpVector.RowCount = 2
+            tlpVector.RowStyles.Add(New RowStyle(SizeType.Absolute, 32))
+            tlpVector.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 120))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+            tlpVector.Padding = New Padding(6)
+            tlpVector.Name = "m_tlpVector"
+
+            Dim lblFleet As New Label()
+            lblFleet.Text = "Fleet:"
+            lblFleet.Dock = DockStyle.Fill
+            lblFleet.TextAlign = ContentAlignment.MiddleLeft
+            tlpVector.Controls.Add(lblFleet, 0, 0)
+
+            Me.m_cbVectorFleet = New ComboBox()
+            Me.m_cbVectorFleet.Dock = DockStyle.Fill
+            Me.m_cbVectorFleet.DropDownStyle = ComboBoxStyle.DropDownList
+            Me.m_cbVectorFleet.Name = "m_cbVectorFleet"
+            For Each strFleet As String In cRestrictedAreasConfig.FIBEFleetTypes
+                Me.m_cbVectorFleet.Items.Add(strFleet)
+            Next
+            If (Me.m_cbVectorFleet.Items.Count > 0) Then
+                Me.m_cbVectorFleet.SelectedIndex = 0
+            End If
+            tlpVector.Controls.Add(Me.m_cbVectorFleet, 1, 0)
+
+            Me.m_dgvVector = New DataGridView()
+            Me.m_dgvVector.Dock = DockStyle.Fill
+            Me.m_dgvVector.AllowUserToAddRows = False
+            Me.m_dgvVector.AllowUserToDeleteRows = False
+            Me.m_dgvVector.AllowUserToResizeRows = False
+            Me.m_dgvVector.RowHeadersVisible = True
+            Me.m_dgvVector.RowHeadersWidth = 120
+            Me.m_dgvVector.MultiSelect = False
+            Me.m_dgvVector.SelectionMode = DataGridViewSelectionMode.CellSelect
+            Me.m_dgvVector.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            Me.m_dgvVector.EditMode = DataGridViewEditMode.EditOnEnter
+            Me.m_dgvVector.Name = "m_dgvVector"
+
+            Dim aMonths() As String = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+            For iMonth As Integer = 0 To aMonths.Length - 1
+                Dim col As New DataGridViewComboBoxColumn()
+                col.HeaderText = aMonths(iMonth)
+                col.Name = "m_col" & aMonths(iMonth)
+                col.Items.Add(StatusDisplay(eRestrictedAreaStatus.Open))
+                col.Items.Add(StatusDisplay(eRestrictedAreaStatus.Navigation))
+                col.Items.Add(StatusDisplay(eRestrictedAreaStatus.Closed))
+                col.FillWeight = 8
+                Me.m_dgvVector.Columns.Add(col)
+            Next
+
+            tlpVector.Controls.Add(Me.m_dgvVector, 0, 1)
+            tlpVector.SetColumnSpan(Me.m_dgvVector, 2)
+
+            gbVector.Controls.Add(tlpVector)
+
+            tlpRoot.Controls.Add(gbZones, 0, 0)
+            tlpRoot.Controls.Add(gbVector, 0, 1)
+
+            Me.m_tpRestrictedZones.Controls.Add(tlpRoot)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Load the restricted zones from the core configuration into the grid.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub LoadRestrictedZones()
+
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+            If (Me.m_dgvRestrictedZones Is Nothing) Then Return
+
+            Me.m_dgvRestrictedZones.Rows.Clear()
+            For Each zone As cRestrictedAreaZone In Me.m_cfgRestrictedAreas.Zones
+                Me.m_dgvRestrictedZones.Rows.Add(zone.Name, zone.ShapefilePath)
+            Next
+
+            Me.SyncVectorToZones()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Store the restricted zones from the grid back into the core
+        ''' configuration.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub SaveRestrictedZones()
+
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+            If (Me.m_dgvRestrictedZones Is Nothing) Then Return
+
+            Me.m_cfgRestrictedAreas.Zones.Clear()
+            For Each row As DataGridViewRow In Me.m_dgvRestrictedZones.Rows
+                If row.IsNewRow Then Continue For
+                Dim strName As String = If(row.Cells(0).Value Is Nothing, "", row.Cells(0).Value.ToString())
+                Dim strPath As String = If(row.Cells(1).Value Is Nothing, "", row.Cells(1).Value.ToString())
+                If (Not String.IsNullOrWhiteSpace(strName)) OrElse (Not String.IsNullOrWhiteSpace(strPath)) Then
+                    Me.m_cfgRestrictedAreas.Zones.Add(New cRestrictedAreaZone With {.Name = strName, .ShapefilePath = strPath})
+                End If
+            Next
+
+            Me.SyncVectorToZones()
+            Me.PersistRestrictedAreas()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Write the restricted areas configuration to the core.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub PersistRestrictedAreas()
+
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+            If (Me.Core Is Nothing) Then Return
+
+            Dim parms As cEcospaceModelParameters = Me.Core.EcospaceModelParameters()
+            parms.SetRestrictedAreasConfig(Me.m_cfgRestrictedAreas)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Add a new zone row with a default name.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnAddZone(sender As Object, e As EventArgs) Handles m_btnAddZone.Click
+
+            If (Me.m_dgvRestrictedZones Is Nothing) Then Return
+
+            Dim nNext As Integer = 1
+            Dim nExisting As Integer = Me.m_dgvRestrictedZones.Rows.Count
+            For n As Integer = 1 To nExisting + 1
+                Dim bTaken As Boolean = False
+                For Each row As DataGridViewRow In Me.m_dgvRestrictedZones.Rows
+                    If row.IsNewRow Then Continue For
+                    If (row.Cells(0).Value IsNot Nothing) AndAlso (String.Equals(row.Cells(0).Value.ToString(), "zone_" & n.ToString())) Then
+                        bTaken = True
+                        Exit For
+                    End If
+                Next
+                If Not bTaken Then
+                    nNext = n
+                    Exit For
+                End If
+            Next
+
+            Dim iRow As Integer = Me.m_dgvRestrictedZones.Rows.Add("zone_" & nNext.ToString(), "")
+            Me.m_dgvRestrictedZones.CurrentCell = Me.m_dgvRestrictedZones.Rows(iRow).Cells(0)
+            Me.m_dgvRestrictedZones.BeginEdit(False)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Remove the selected zone row.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnRemoveZone(sender As Object, e As EventArgs) Handles m_btnRemoveZone.Click
+
+            If (Me.m_dgvRestrictedZones Is Nothing) Then Return
+            If (Me.m_dgvRestrictedZones.CurrentRow Is Nothing) Then Return
+            If (Me.m_dgvRestrictedZones.CurrentRow.IsNewRow) Then Return
+
+            Me.m_dgvRestrictedZones.Rows.Remove(Me.m_dgvRestrictedZones.CurrentRow)
+            Me.SaveRestrictedZones()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Browse for a shapefile and assign it to the selected zone row.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnBrowseZone(sender As Object, e As EventArgs) Handles m_btnBrowseZone.Click
+
+            If (Me.m_dgvRestrictedZones Is Nothing) Then Return
+            If (Me.m_dgvRestrictedZones.CurrentRow Is Nothing) Then Return
+
+            Dim row As DataGridViewRow = Me.m_dgvRestrictedZones.CurrentRow
+            If row.IsNewRow Then
+                row = Me.m_dgvRestrictedZones.Rows(Me.m_dgvRestrictedZones.Rows.Add("", ""))
+            End If
+
+            Dim dlg As New OpenFileDialog()
+            dlg.Filter = "Shapefile (*.shp)|*.shp|All files (*.*)|*.*"
+            dlg.CheckFileExists = True
+            Dim strCurrent As String = If(row.Cells(1).Value Is Nothing, "", row.Cells(1).Value.ToString())
+            If (Not String.IsNullOrWhiteSpace(strCurrent)) Then
+                dlg.InitialDirectory = IO.Path.GetDirectoryName(strCurrent)
+                dlg.FileName = IO.Path.GetFileName(strCurrent)
+            End If
+
+            If dlg.ShowDialog(Me) = System.Windows.Forms.DialogResult.OK Then
+                row.Cells(1).Value = dlg.FileName
+                Me.SaveRestrictedZones()
+            End If
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Persist the zones whenever the user finishes editing a cell.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnRestrictedZonesCellEndEdit(sender As Object, e As DataGridViewCellEventArgs) _
+            Handles m_dgvRestrictedZones.CellEndEdit
+            Me.SaveRestrictedZones()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Persist the zones when the user deletes a row directly in the grid.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnRestrictedZonesUserDeletedRow(sender As Object, e As DataGridViewRowEventArgs) _
+            Handles m_dgvRestrictedZones.UserDeletedRow
+            Me.SaveRestrictedZones()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Display text for a restriction status.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Shared Function StatusDisplay(status As eRestrictedAreaStatus) As String
+            Select Case status
+                Case eRestrictedAreaStatus.Navigation
+                    Return "Navigation"
+                Case eRestrictedAreaStatus.Closed
+                    Return "Closed"
+                Case Else
+                    Return "Open"
+            End Select
+        End Function
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Status from its display text.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Shared Function StatusFromDisplay(strDisplay As String) As eRestrictedAreaStatus
+            Select Case strDisplay
+                Case "Navigation"
+                    Return eRestrictedAreaStatus.Navigation
+                Case "Closed"
+                    Return eRestrictedAreaStatus.Closed
+                Case Else
+                    Return eRestrictedAreaStatus.Open
+            End Select
+        End Function
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Synchronize the per-fleet restriction matrices with the current
+        ''' zone list: grow or shrink every matrix so that row i matches
+        ''' zone i. New rows default to <see cref="eRestrictedAreaStatus.Open"/>.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub SyncVectorToZones()
+
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+
+            Dim nZones As Integer = Me.m_cfgRestrictedAreas.Zones.Count
+
+            For Each strFleet As String In cRestrictedAreasConfig.FIBEFleetTypes
+                If (Not Me.m_cfgRestrictedAreas.Vector.ContainsKey(strFleet)) Then Continue For
+                Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.Vector(strFleet)
+                If (matrix.Length = nZones) Then Continue For
+
+                Dim resized(nZones - 1)() As Integer
+                For i As Integer = 0 To nZones - 1
+                    If (i < matrix.Length) Then
+                        resized(i) = matrix(i)
+                    Else
+                        resized(i) = New Integer(cRestrictedAreasConfig.nMonths - 1) {}
+                        For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                            resized(i)(m) = CInt(eRestrictedAreaStatus.Open)
+                        Next
+                    End If
+                Next
+                Me.m_cfgRestrictedAreas.Vector(strFleet) = resized
+            Next
+
+            Me.LoadVectorGrid()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' (Re)load the restriction grid for the currently selected fleet.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub LoadVectorGrid()
+
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+            If (Me.m_dgvVector Is Nothing) Then Return
+            If (Me.m_cbVectorFleet Is Nothing) Then Return
+            If (Me.m_cbVectorFleet.SelectedItem Is Nothing) Then Return
+
+            Dim strFleet As String = Me.m_cbVectorFleet.SelectedItem.ToString()
+            Dim nZones As Integer = Me.m_cfgRestrictedAreas.Zones.Count
+            Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.GetOrCreateVector(strFleet, nZones)
+
+            Me.m_bLoadingVector = True
+            Try
+                Me.m_dgvVector.Rows.Clear()
+                For i As Integer = 0 To nZones - 1
+                    Dim iRow As Integer = Me.m_dgvVector.Rows.Add()
+                    Me.m_dgvVector.Rows(iRow).HeaderCell.Value = Me.m_cfgRestrictedAreas.Zones(i).Name
+                    For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                        Dim status As eRestrictedAreaStatus = CType(matrix(i)(m), eRestrictedAreaStatus)
+                        Me.m_dgvVector.Rows(iRow).Cells(m).Value = StatusDisplay(status)
+                    Next
+                Next
+            Finally
+                Me.m_bLoadingVector = False
+            End Try
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Store the restriction grid of the currently selected fleet back into
+        ''' the configuration and persist it.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub SaveVectorGrid()
+
+            If (Me.m_bLoadingVector) Then Return
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+            If (Me.m_dgvVector Is Nothing) Then Return
+            If (Me.m_cbVectorFleet Is Nothing) Then Return
+            If (Me.m_cbVectorFleet.SelectedItem Is Nothing) Then Return
+
+            Dim strFleet As String = Me.m_cbVectorFleet.SelectedItem.ToString()
+            Dim nZones As Integer = Me.m_cfgRestrictedAreas.Zones.Count
+            Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.GetOrCreateVector(strFleet, nZones)
+
+            For i As Integer = 0 To Me.m_dgvVector.Rows.Count - 1
+                If (i >= nZones) Then Exit For
+                For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                    Dim value As Object = Me.m_dgvVector.Rows(i).Cells(m).Value
+                    Dim status As eRestrictedAreaStatus = eRestrictedAreaStatus.Open
+                    If (value IsNot Nothing) Then
+                        status = StatusFromDisplay(value.ToString())
+                    End If
+                    matrix(i)(m) = CInt(status)
+                Next
+            Next
+
+            Me.PersistRestrictedAreas()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Load the restriction grid of the newly selected fleet.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnVectorFleetChanged(sender As Object, e As EventArgs) Handles m_cbVectorFleet.SelectedIndexChanged
+            Me.LoadVectorGrid()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Persist the restriction grid whenever the user edits a status.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnVectorCellValueChanged(sender As Object, e As DataGridViewCellEventArgs) _
+            Handles m_dgvVector.CellValueChanged
+            Me.SaveVectorGrid()
         End Sub
 
         ''' -------------------------------------------------------------------
@@ -643,6 +1195,7 @@ Namespace Ecospace
 
             If ts.iTimeStep = 1 Then
                 Me.SaveStaticMaps(targetFolder)
+                Me.ExportRestrictedAreas(targetFolder)
             End If
             Me.SaveOffVesselPriceToTxt(ts, targetFolder)
             Me.SaveLandingsToTxt(ts, targetFolder)
@@ -690,6 +1243,7 @@ Namespace Ecospace
             Dim runTime As TextBox = Me.m_tbTotalTime
             Dim valueRunTime As Integer = CInt(runTime.Text.Replace("""", ""))
             Dim iFirstYear As Integer = Me.Core.EcosimFirstYear()
+            If iFirstYear <= 0 Then iFirstYear = 2000
 
             If System.IO.Directory.Exists(basePath) Then
                 Debug.WriteLine($"Contenu de {basePath} :")
@@ -707,14 +1261,32 @@ Namespace Ecospace
 
             If timeStep > 1 Then
                 Debug.WriteLine($"Waiting for file: {targetFileName}")
+
+                Dim waitStart As DateTime = DateTime.UtcNow
+                Dim waitTimeout As TimeSpan = TimeSpan.FromMinutes(5) ' 5 minutes timeout
+                
                 While Not System.IO.File.Exists(fullPath)
-                    System.Threading.Thread.Sleep(2000) ' Pause de 2 secondes
+                    If DateTime.UtcNow - waitStart > waitTimeout Then
+                        Dim msg As String = String.Format(
+                            "FIBE coupling: timeout waiting for {0}" &
+                            " after {5} minutes. Continuing without" &
+                            " fishing mortality update.",
+                            targetFileName, waitTimeout.TotalMinutes
+                            )
+                            Me.WriteFibeLog("ERROR", & msg)
+                            m_logger.LogError(msg)
+                            Exit While
+                        End If
+                        System.Threading.Thread.Sleep(2000) ' Pause de 2 secondes
                 End While
-                Debug.WriteLine($"File found: {targetFileName}")
+
+                If System.IO.File.Exists(fullPath) Then
+                    Debug.WriteLine($"File found: {targetFileName}")
 
                 ' FIBE coupling: read the fishing mortality exported by FIBE for this month
                 ' (F_<count>.csv is written by FIBE at the same time as the agent file)
                 Me.LoadFIBEFishingMortality(count, basePath)
+                End If
             End If
 
         End Sub
@@ -908,6 +1480,91 @@ Namespace Ecospace
                 Next
             Catch ex As Exception
                 Debug.WriteLine("SaveStaticMaps Habitats error: " & ex.Message)
+            End Try
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Export the restricted areas configuration for the FIBE coupling:
+        ''' <list type="bullet">
+        ''' <item><description>the per-fleet restriction matrix as a CSV file
+        ''' readable by diatome (fleet blocks of zone x month status lines);</description></item>
+        ''' <item><description>a JSON file ("restricted_zones.json") with the
+        ''' "restricted_area_map" and "restricted_area_vector" entries that
+        ''' CreateJSON.ps1 merges into the diatome config.</description></item>
+        ''' </list>
+        ''' </summary>
+        ''' <param name="targetFolder">Coupling data folder (Couplage/Data).</param>
+        ''' -------------------------------------------------------------------
+        Private Sub ExportRestrictedAreas(targetFolder As String)
+
+            If (Me.Core Is Nothing) Then Return
+
+            Dim cfg As cRestrictedAreasConfig = Me.Core.EcospaceModelParameters().GetRestrictedAreasConfig()
+            If (cfg.Zones.Count = 0) Then
+                m_logger.LogInformation("FIBE coupling: no restricted zones configured, skipping restricted area export")
+                Return
+            End If
+
+            Try
+                ' --- 1. Per-fleet restriction matrix CSV --------------------
+                Dim vecFolder As String = Path.GetFullPath(Path.Combine(targetFolder, "RestrictedArea"))
+                If Not Directory.Exists(vecFolder) Then
+                    Directory.CreateDirectory(vecFolder)
+                End If
+                Dim vecPath As String = Path.Combine(vecFolder, "restricted_area_vector.csv")
+
+                Dim aMonths() As String = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+                Dim sb As New System.Text.StringBuilder()
+                For Each strFleet As String In cRestrictedAreasConfig.FIBEFleetTypes
+                    If (Not cfg.Vector.ContainsKey(strFleet)) Then Continue For
+                    Dim matrix As Integer()() = cfg.Vector(strFleet)
+                    If (matrix.Length = 0) Then Continue For
+
+                    sb.Append(strFleet)
+                    For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                        sb.Append(";").Append(aMonths(m))
+                    Next
+                    sb.AppendLine()
+
+                    For i As Integer = 0 To Math.Min(matrix.Length, cfg.Zones.Count) - 1
+                        sb.Append(cfg.Zones(i).Name)
+                        For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                            Dim status As eRestrictedAreaStatus = CType(matrix(i)(m), eRestrictedAreaStatus)
+                            Select Case status
+                                Case eRestrictedAreaStatus.Navigation
+                                    sb.Append(";").Append("navigable")
+                                Case eRestrictedAreaStatus.Closed
+                                    sb.Append(";").Append("fermé")
+                                Case Else
+                                    sb.Append(";").Append("ouvert")
+                            End Select
+                        Next
+                        sb.AppendLine()
+                    Next
+                Next
+
+                ' diatome reads the CSV as latin-1 ("fermé" contains accents)
+                Dim latin1 As System.Text.Encoding = System.Text.Encoding.GetEncoding(28591)
+                System.IO.File.WriteAllText(vecPath, sb.ToString(), latin1)
+                m_logger.LogInformation("FIBE coupling: restricted area vector exported to {Path}", vecPath)
+
+                ' --- 2. JSON fragment for CreateJSON.ps1 ---------------------
+                Dim json As New Newtonsoft.Json.Linq.JObject()
+                Dim jsonZones As New Newtonsoft.Json.Linq.JObject()
+                For Each zone As cRestrictedAreaZone In cfg.Zones
+                    If (String.IsNullOrWhiteSpace(zone.Name)) Then Continue For
+                    jsonZones(zone.Name) = zone.ShapefilePath
+                Next
+                json("restricted_area_map") = jsonZones
+                json("restricted_area_vector") = vecPath
+
+                Dim jsonPath As String = Path.Combine(targetFolder, "restricted_zones.json")
+                System.IO.File.WriteAllText(jsonPath, json.ToString(Newtonsoft.Json.Formatting.None))
+                m_logger.LogInformation("FIBE coupling: restricted area configuration exported to {Path}", jsonPath)
+            Catch ex As Exception
+                m_logger.LogError(ex, "FIBE coupling: failed to export restricted areas")
             End Try
 
         End Sub

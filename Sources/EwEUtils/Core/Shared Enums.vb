@@ -691,6 +691,10 @@ Namespace Core
 
 
         UseOtherModel
+        ''' <summary>JSON-serialized list of restricted areas (zone name to shapefile path) for the FIBE coupling.</summary>
+        EcospaceRestrictedAreaMap
+        ''' <summary>JSON-serialized per-fleet restriction matrix (zone x month) for the FIBE coupling.</summary>
+        EcospaceRestrictedAreaVector
         ''' <summary>Use other fishery model</summary>
         IFDPower
         ''' <summary>To document</summary>

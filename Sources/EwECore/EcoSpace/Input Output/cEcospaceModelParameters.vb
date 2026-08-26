@@ -172,6 +172,17 @@ Public Class cEcospaceModelParameters
             val = New cValue(core, 0, eVarNameFlags.UseOtherModel, eStatusFlags.Null, eValueTypes.Bool)
             Me.m_values.Add(val.varName, val)
 
+            ' FIBE coupling: restricted areas, stored as JSON strings
+            val = New cValue(core, "", eVarNameFlags.EcospaceRestrictedAreaMap, eStatusFlags.Null, eValueTypes.Str)
+            val.Stored = True
+            val.AffectsRunState = False
+            Me.m_values.Add(val.varName, val)
+
+            val = New cValue(core, "", eVarNameFlags.EcospaceRestrictedAreaVector, eStatusFlags.Null, eValueTypes.Str)
+            val.Stored = True
+            val.AffectsRunState = False
+            Me.m_values.Add(val.varName, val)
+
             val = New cValue(core, 1, eVarNameFlags.EcospaceIBMMovePacketOnStanza, eStatusFlags.Null, eValueTypes.Bool)
             Me.m_values.Add(val.varName, val)
 
@@ -498,6 +509,33 @@ Public Class cEcospaceModelParameters
             Me.SetVariable(eVarNameFlags.UseOtherModel, value)
         End Set
     End Property
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Get the restricted areas configuration (zones + restriction matrix)
+    ''' configured for the FIBE coupling.
+    ''' </summary>
+    ''' <returns>A populated <see cref="cRestrictedAreasConfig"/>. Never
+    ''' returns Nothing.</returns>
+    ''' -----------------------------------------------------------------------
+    Public Function GetRestrictedAreasConfig() As cRestrictedAreasConfig
+        Dim cfg As New cRestrictedAreasConfig
+        cfg.DeserializeMap(CStr(Me.GetVariable(eVarNameFlags.EcospaceRestrictedAreaMap)))
+        cfg.DeserializeVector(CStr(Me.GetVariable(eVarNameFlags.EcospaceRestrictedAreaVector)))
+        Return cfg
+    End Function
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Persist the restricted areas configuration (zones + restriction matrix)
+    ''' for the FIBE coupling.
+    ''' </summary>
+    ''' -----------------------------------------------------------------------
+    Public Sub SetRestrictedAreasConfig(cfg As cRestrictedAreasConfig)
+        If (cfg Is Nothing) Then Return
+        Me.SetVariable(eVarNameFlags.EcospaceRestrictedAreaMap, cfg.SerializeMap())
+        Me.SetVariable(eVarNameFlags.EcospaceRestrictedAreaVector, cfg.SerializeVector())
+    End Sub
 
     Public Property TotalTime() As Single
         Get
