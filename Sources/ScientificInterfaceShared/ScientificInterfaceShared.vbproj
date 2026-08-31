@@ -23,7 +23,7 @@
     <PackageProjectUrl>https://github.com/Official-EwE/Eii.Ecopath.ScientificInterfaceShared</PackageProjectUrl>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-    <Version>6.7.13</Version>
+    <Version>6.7.5</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/Official-EwE/Eii.Ecopath</RepositoryUrl>
     <PackageReleaseNotes>Initial version.</PackageReleaseNotes>
@@ -588,11 +588,11 @@
     <Folder Include="Controls\Map\Layers\Rendering\Vector\" />
   </ItemGroup>
   <ItemGroup>
-   <!--  <PackageReference Include="Eii.Ecopath.Licence">
-      <Version>1.0.3</Version>
-    </PackageReference> -->
+    <PackageReference Include="Eii.Ecopath.Licence">
+      <Version>1.0.1</Version>
+    </PackageReference>
     <PackageReference Include="EPPlus" Version="8.3.1" />
-    <PackageReference Include="System.Resources.Extensions" Version="10.0.0" />
+    <PackageReference Include="System.Resources.Extensions" Version="10.0.8" />
   </ItemGroup>
   <Target Name="BeforeBuild"></Target>
   <Target Name="AfterBuild">

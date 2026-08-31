@@ -202,9 +202,9 @@ Public Class cCore
     Private Shared ReadOnly m_logger As ILogger = LoggingContext.CreateLogger(Of cCore)()
 
 
-'#If Not NET Then
-'    Private m_license As cLicense = Nothing
-'#End If
+#If Not NET Then
+    Private m_license As cLicense = Nothing
+#End If
 
 #End Region ' Generic variables
 
@@ -15555,19 +15555,21 @@ Public Class cCore
 
 #End Region
 
-    '#Region " License "
-    '
-    '    <CLSCompliant(False)>
-    '    Public ReadOnly Property License As cLicense
-    '        Get
-    '            If (Me.m_license Is Nothing) Then
-    '                Me.m_license = New cLicense()
-    '            End If
-    '            Return Me.m_license
-    '       End Get
-    '    End Property
+#Region " License "
 
-    '#End Region ' License
+#If Not NET Then
+    <CLSCompliant(False)>
+    Public ReadOnly Property License As cLicense
+        Get
+            If (Me.m_license Is Nothing) Then
+                Me.m_license = New cLicense()
+            End If
+            Return Me.m_license
+        End Get
+    End Property
+#End If
+
+#End Region ' License
 
 #Region " Deprecated "
 

@@ -4,7 +4,13 @@ param(
     [Parameter(Mandatory = $true)]
     [int]$runTime,
     [Parameter(Mandatory = $true)]
-    [int]$FirstYear
+    [int]$FirstYear,
+    [Parameter(Mandatory = $false)]
+    [float]$WestLon,
+    [Parameter(Mandatory = $false)]
+    [float]$NorthLat,
+    [Parameter(Mandatory = $false)]
+    [float]$CellSize
 )
 
 # --- 1. Initialisation et Validation ---
@@ -34,6 +40,17 @@ $config.simulation | Add-Member -Name "duration_years" -Value $runTime -MemberTy
 if ($FirstYear -le 0) { $FirstYear = 2000 }
 $config.simulation | Add-Member -Name "start_date" -Value "$FirstYear-01-01" -MemberType NoteProperty -Force
 
+# Application des paramètres de la carte si fournis
+if ($PSBoundParameters.ContainsKey('WestLon') -and 
+    $PSBoundParameters.ContainsKey('NorthLat') -and 
+    $PSBoundParameters.ContainsKey('CellSize')) {
+    if (-not $config.maps.PSObject.Properties.Match('spatial_extent')) {
+        $config.maps | Add-Member -Name "spatial_extent" -Value ([PSCustomObject]@{}) -MemberType NoteProperty
+    }
+    $config.maps.spatial_extent | Add-Member -Name "west" -Value $WestLon -MemberType NoteProperty -Force
+    $config.maps.spatial_extent | Add-Member -Name "north" -Value $NorthLat -MemberType NoteProperty -Force
+    $config.maps.spatial_extent | Add-Member -Name "cell_size_deg" -Value $CellSize -MemberType NoteProperty -Force
+}
 # --- 2. Fonctions Helper pour la réduction de code ---
 
 function Add-FileMap {

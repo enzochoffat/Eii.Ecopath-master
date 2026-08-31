@@ -1232,6 +1232,7 @@ Namespace Ecospace
             Dim timeStep As Integer = ts.iTimeStep
 
             If timeStep = 1 Then
+                fileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "install_FIBE.ps1")
                 Me.RunInstallScript(fileName)
             End If
 
@@ -1257,7 +1258,11 @@ Namespace Ecospace
             ' FIBE (mtime de config.json). Si on attend l'agent d'abord, on crée
             ' un deadlock (Ecospace attend agent_{count}.csv que FIBE ne peut
             ' écrire qu'après avoir reçu le nouveau config.json).
-            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime, iFirstYear)
+            Dim bm As cEcospaceBasemap = Me.Core.EcospaceBasemap
+            Dim dWestLon As Single = bm.Longitude
+            Dim dNorthLat As Single = bm.Latitude
+            Dim dCellSize As Single = bm.CellSize
+            Me.RunPostSaveScript(fileName, ts.iTimeStep, valueRunTime, iFirstYear, dWestLon, dNorthLat, dCellSize)
 
             If timeStep > 1 Then
                 Debug.WriteLine($"Waiting for file: {targetFileName}")
@@ -1595,7 +1600,7 @@ Namespace Ecospace
         Private Sub RunInstallScript(fileName As String)
 
             Dim scriptDir As String = Path.GetDirectoryName(fileName)
-            Dim scriptInstallPath As String = Path.Combine(scriptDir, "install.ps1")
+            Dim scriptInstallPath As String = Path.Combine(scriptDir, "install_FIBE.ps1")
 
             If Not File.Exists(scriptInstallPath) Then
                 Dim content As String = Me.GetInstallScriptContent()
@@ -1623,8 +1628,12 @@ Namespace Ecospace
 
         End Sub
 
-        Private Function GetPostSaveScriptContent() As String
+        Private Function GetPostSaveScriptContent(westLon As Single, northLat As Single, cellSize As Single) As String
             Dim sb As New System.Text.StringBuilder()
+            Dim inv As System.Globalization.CultureInfo = System.Globalization.CultureInfo.InvariantCulture
+            Dim sWest As String = westLon.ToString(inv)
+            Dim sNorth As String = northLat.ToString(inv)
+            Dim sCellSize As String = cellSize.ToString(inv)
             sb.AppendLine("param(")
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
             sb.AppendLine("    [string]$InputFile,")
@@ -1634,6 +1643,12 @@ Namespace Ecospace
             sb.AppendLine("    $runTime,")
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
             sb.AppendLine("    [int]$FirstYear,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [string]$WestLon,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [string]$NorthLat,")
+            sb.AppendLine("    [Parameter(Mandatory = $true)]")
+            sb.AppendLine("    [string]$CellSize,")
             sb.AppendLine("    [Parameter(Mandatory = $true)]")
             sb.AppendLine("    [string]$LogFile")
             sb.AppendLine(")")
@@ -1694,7 +1709,7 @@ Namespace Ecospace
             sb.AppendLine("")
 
             sb.AppendLine("try {")
-            sb.AppendLine("    $out = & "".\..\..\CreateJSON.ps1"" $TimeStep $runTime $FirstYear 2>&1 | Out-String")
+            sb.AppendLine("    $out = & "".\..\..\CreateJSON.ps1"" $TimeStep $runTime $FirstYear " & sWest & " " & sNorth & " " & sCellSize & " 2>&1 | Out-String")
             sb.AppendLine("} catch {")
             sb.AppendLine("    $out = ""EXCEPTION: "" + $_.Exception.Message")
             sb.AppendLine("}")
@@ -1703,7 +1718,7 @@ Namespace Ecospace
             Return sb.ToString()
         End Function
 
-        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer, valueRunTime As Integer, iFirstYear As Integer)
+        Private Sub RunPostSaveScript(fileName As String, timeStep As Integer, valueRunTime As Integer, iFirstYear As Integer, westLon As Single, northLat As Single, cellSize As Single)
 
             Dim scriptDir As String = Path.GetDirectoryName(fileName)
             Dim scriptPath As String = Path.Combine(scriptDir, "post_save.ps1")
@@ -1711,13 +1726,18 @@ Namespace Ecospace
 
             ' Toujours régénérer le script : il doit rester synchronisé avec le
             ' code (ajout/retrait d'étapes de conversion).
-            Dim content As String = Me.GetPostSaveScriptContent()
+            Dim content As String = Me.GetPostSaveScriptContent(westLon, northLat, cellSize)
             File.WriteAllText(scriptPath, content)
             m_logger.LogInformation("Post save script created at {Path}", scriptPath)
+            Dim inv As System.Globalization.CultureInfo = System.Globalization.CultureInfo.InvariantCulture
 
             Dim psi As New ProcessStartInfo()
             psi.FileName = "powershell.exe"
-            psi.Arguments = String.Format("-ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3} {4} ""{5}""", scriptPath, fileName, timeStep, valueRunTime, iFirstYear, logFilePath)
+            ' westLon/northLat/cellSize sont injectés directement dans le script
+            ' généré (appel CreateJSON.ps1), ils ne doivent PAS être passés en
+            ' arguments positionnels : le script n'a que 5 paramètres et
+            ' PowerShell échouerait à la liaison avant même de créer le log.
+            psi.Arguments = String.Format("-ExecutionPolicy Bypass -File ""{0}"" ""{1}"" {2} {3} {4} {5} {6} {7} ""{8}""", scriptPath, fileName, timeStep, valueRunTime, iFirstYear, westLon, northLat, cellSize, logFilePath)
             psi.UseShellExecute = False
             psi.CreateNoWindow = True
             psi.WorkingDirectory = Path.GetDirectoryName(scriptPath)

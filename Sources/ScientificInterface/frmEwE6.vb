@@ -1108,7 +1108,7 @@ Public Class frmEwE6
         Me.PopulateModelMRUDropdown()
         'Me.UpdateRegistrationControls()
 
-        Me.m_cmdHelpAbout.AddControl(Me.m_tsbnLicense)
+        Me.m_cmdHelpAbout.AddControl(Me.m_cmdEnterLicense)
 
         AddHandler Me.Core.StateMonitor.CoreExecutionStateEvent, AddressOf Me.OnCoreExecutionStateChanged
 
@@ -1703,32 +1703,35 @@ Public Class frmEwE6
 
     End Sub
 
-    'Private Sub UpdateRegistrationControls()
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Update the registration controls based on the current license status.
+    ''' </summary>
+    ''' -----------------------------------------------------------------------
+    Private Sub UpdateRegistrationControls()
+        Try
+            If Me.Core.License.IsRegistered Then
+                Dim diff As Integer = Me.Core.License.Expiry.Subtract(Date.Now).Days
+                If diff > 28 Then ' Start warning four weeks prior expiration
+                    Me.m_tsbnLicense.Image = SharedResources.license_ok
+                ElseIf diff > 0 Then
+                    Me.m_tsbnLicense.Image = SharedResources.Warning
+                Else
+                Me.m_tsbnLicense.Image = SharedResources.license_expired
+                End If
+                Me.m_tsbnLicense.Text = EwELicense(Me.Core.License)
+                Me.m_tsbnLicense.ToolTipText = EwE6ApplicationFramework.EwERegistration(Me.Core.License)
+                Me.m_tsbnLicense.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText
+            Else
+                Me.m_tsbnLicense.Text = EwELicense(Nothing)
+                Me.m_tsbnLicense.ToolTipText = ""
+                Me.m_tsbnLicense.DisplayStyle = ToolStripItemDisplayStyle.Text
+            End If
+        Catch ex As Exception
 
-    'Try
-    'If Me.Core.License.IsRegistered Then
-    'Dim diff As Integer = Me.Core.License.Expiry.Subtract(Date.Now).Days
-    'If diff > 28 Then ' Start warning four weeks prior expiration
-    'Me.m_tsbnLicense.Image = SharedResources.license_ok
-    'ElseIf diff > 0 Then
-    'Me.m_tsbnLicense.Image = SharedResources.Warning
-    'Else
-    'Me.m_tsbnLicense.Image = SharedResources.license_expired
-    'End If
+        End Try
 
-    'Me.m_tsbnLicense.Text = EwELicense(Me.Core.License)
-    'Me.m_tsbnLicense.ToolTipText = EwE6ApplicationFramework.EwERegistration(Me.Core.License)
-    'Me.m_tsbnLicense.DisplayStyle = ToolStripItemDisplayStyle.ImageAndText
-    'Else
-    'Me.m_tsbnLicense.Text = EwELicense(Nothing)
-    'Me.m_tsbnLicense.ToolTipText = ""
-    'Me.m_tsbnLicense.DisplayStyle = ToolStripItemDisplayStyle.Text
-    'End If
-    'Catch ex As Exception
-
-    'End Try
-
-    'End Sub
+    End Sub
 
 #End Region ' UI updates
 
@@ -4939,22 +4942,22 @@ Public Class frmEwE6
 #Region " License commands "
 
 
-    '    Private Sub OnEnterLicense(cmd As cCommand) Handles m_cmdEnterLicense.OnInvoke
-    '        Dim l As New cWebLinks(Me.Core)
-    '        If Me.Core.License.ShowRegistrationForm(Me, Me.Text, l.GetURL(cWebLinks.eLinkType.GoPro), SharedResources.Ecopath_install) = DialogResult.OK Then
-    '            Me.UpdateRegistrationControls()
-    '        End If
-    '    End Sub
+    Private Sub OnEnterLicense(cmd As cCommand) Handles m_cmdEnterLicense.OnInvoke
+        Dim l As New cWebLinks(Me.Core)
+        If Me.Core.License.ShowRegistrationForm(Me, Me.Text, l.GetURL(cWebLinks.eLinkType.GoPro), SharedResources.Ecopath_install) = DialogResult.OK Then
+            Me.UpdateRegistrationControls()
+        End If
+    End Sub
 
-    '    Private Sub OnClearLicense(cmd As cCommand) Handles m_cmdClearLicense.OnInvoke
-    '        If (Not Me.Core.License.IsRegistered) Then Return
-    '        Me.Core.License.Unregister()
-    '        Me.UpdateRegistrationControls()
-    '    End Sub
+    Private Sub OnClearLicense(cmd As cCommand) Handles m_cmdClearLicense.OnInvoke
+        If (Not Me.Core.License.IsRegistered) Then Return
+        Me.Core.License.Unregister()
+        Me.UpdateRegistrationControls()
+    End Sub
 
-    '    Private Sub OnClearLicenseUpdate(cmd As cCommand) Handles m_cmdClearLicense.OnUpdate
-    '        cmd.Enabled = Me.Core.License.IsRegistered()
-    '    End Sub
+    Private Sub OnClearLicenseUpdate(cmd As cCommand) Handles m_cmdClearLicense.OnUpdate
+        cmd.Enabled = Me.Core.License.IsRegistered()
+    End Sub
 
 #End Region ' License commands
 

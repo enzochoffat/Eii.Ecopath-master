@@ -3,5 +3,8 @@
   <PropertyGroup>
     <!-- Default for the repo; override in CI via /p -->
     <UseProjectReferences>true</UseProjectReferences>
+    <!-- Avoid obj collision for projects sharing same sources (EwEUtils/EwEUtils_dotnet etc.) -->
+    <BaseIntermediateOutputPath>obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>obj\$(MSBuildProjectName)\</MSBuildProjectExtensionsPath>
   </PropertyGroup>
 </Project>
