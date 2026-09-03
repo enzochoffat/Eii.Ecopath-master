@@ -1,5 +1,5 @@
 $scriptDir = $PSScriptRoot
-$fibePath = Join-Path -Path $scriptDir -ChildPath "FIBE\diatome"
+$fibePath = Join-Path -Path $scriptDir -ChildPath "FIBE"
 $FibeParent = Join-Path -Path $scriptDir -ChildPath "FIBE"
 
 $RepoUrl = "https://github.com/enzochoffat/diatome.git"
@@ -13,6 +13,23 @@ if (-Not (Test-Path $fibePath)) {
         Write-Error "Error: Failed to clone the repository."
         exit 1
     }
+
+    $venvPath = Join-Path $fibePath "venv"
+    $venvPython = Join-Path $venvPath "Scripts\python.exe"
+    $reqFile = Join-Path $fibePath "requirement.txt"
+    if (-Not (Test-Path $reqFile)) { $reqFile = Join-Path $fibePath "requirement_coupling.txt" }
+    Write-Host "Creating venv at $venvPath..." -ForegroundColor Cyan
+    python -m venv $venvPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Error: Failed to create venv."
+        exit 1
+    }
+    & $venvPython -m pip install --upgrade pip
+    & $venvPython -m pip install -r $reqFile
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Error: Failed to install Python dependencies from $reqFile."
+        exit 1
+    }
 } else {
     Write-Host "FIBE directory exists. Checking for updates..." -ForegroundColor Cyan
     Push-Location $fibePath
@@ -22,7 +39,6 @@ if (-Not (Test-Path $fibePath)) {
         Pop-Location
         exit 1
     }
-    Pop-Location
     git fetch origin
     Write-Host "Fetching updates from the repository..." -ForegroundColor Cyan
 
@@ -47,9 +63,28 @@ if (-Not (Test-Path $fibePath)) {
             exit 1
         }
         Write-Host "The repository has been updated successfully." -ForegroundColor Green
-        
     }
     Pop-Location
+
+    # S'assurer que le venv existe même si le dépôt était déjà à jour
+    $venvPath = Join-Path $fibePath "venv"
+    $venvPython = Join-Path $venvPath "Scripts\python.exe"
+    if (-Not (Test-Path $venvPython)) {
+        $reqFile = Join-Path $fibePath "requirement.txt"
+        if (-Not (Test-Path $reqFile)) { $reqFile = Join-Path $fibePath "requirement_coupling.txt" }
+        Write-Host "venv missing, creating at $venvPath..." -ForegroundColor Cyan
+        python -m venv $venvPath
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Error: Failed to create venv."
+            exit 1
+        }
+        & $venvPython -m pip install --upgrade pip
+        & $venvPython -m pip install -r $reqFile
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Error: Failed to install Python dependencies from $reqFile."
+            exit 1
+        }
+    }
 }
 
 Write-Host "FIBE setup completed successfully." -ForegroundColor Green

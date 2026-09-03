@@ -695,6 +695,10 @@ Namespace Core
         EcospaceRestrictedAreaMap
         ''' <summary>JSON-serialized per-fleet restriction matrix (zone x month) for the FIBE coupling.</summary>
         EcospaceRestrictedAreaVector
+        ''' <summary>Path to the CSV/Excel file defining the temporal number of agents per fleet type for the FIBE coupling.</summary>
+        EcospaceAgentNumbersFile
+        ''' <summary>JSON-serialized per-agent FIBE definitions (initial situation, step 1) for the FIBE coupling.</summary>
+        EcospaceFibeAgents
         ''' <summary>Use other fishery model</summary>
         IFDPower
         ''' <summary>To document</summary>

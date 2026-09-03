@@ -183,6 +183,18 @@ Public Class cEcospaceModelParameters
             val.AffectsRunState = False
             Me.m_values.Add(val.varName, val)
 
+            ' FIBE coupling: temporal agent numbers file (CSV/Excel) per fleet type / date
+            val = New cValue(core, "", eVarNameFlags.EcospaceAgentNumbersFile, eStatusFlags.Null, eValueTypes.Str)
+            val.Stored = True
+            val.AffectsRunState = False
+            Me.m_values.Add(val.varName, val)
+
+            ' FIBE coupling: initial per-agent definitions (Agents tab), stored as JSON
+            val = New cValue(core, "", eVarNameFlags.EcospaceFibeAgents, eStatusFlags.Null, eValueTypes.Str)
+            val.Stored = True
+            val.AffectsRunState = False
+            Me.m_values.Add(val.varName, val)
+
             val = New cValue(core, 1, eVarNameFlags.EcospaceIBMMovePacketOnStanza, eStatusFlags.Null, eValueTypes.Bool)
             Me.m_values.Add(val.varName, val)
 
@@ -536,6 +548,46 @@ Public Class cEcospaceModelParameters
         Me.SetVariable(eVarNameFlags.EcospaceRestrictedAreaMap, cfg.SerializeMap())
         Me.SetVariable(eVarNameFlags.EcospaceRestrictedAreaVector, cfg.SerializeVector())
     End Sub
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Get the FIBE initial agents configuration (per-agent definitions
+    ''' edited in the "Agents (FIBE)" tab).
+    ''' </summary>
+    ''' <returns>A populated <see cref="cFibeAgentsConfig"/>. Never
+    ''' returns Nothing.</returns>
+    ''' -----------------------------------------------------------------------
+    Public Function GetFibeAgentsConfig() As cFibeAgentsConfig
+        Dim cfg As New cFibeAgentsConfig
+        cfg.Deserialize(CStr(Me.GetVariable(eVarNameFlags.EcospaceFibeAgents)))
+        Return cfg
+    End Function
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Persist the FIBE initial agents configuration for the FIBE coupling.
+    ''' </summary>
+    ''' -----------------------------------------------------------------------
+    Public Sub SetFibeAgentsConfig(cfg As cFibeAgentsConfig)
+        If (cfg Is Nothing) Then Return
+        Me.SetVariable(eVarNameFlags.EcospaceFibeAgents, cfg.Serialize())
+    End Sub
+
+    ''' -----------------------------------------------------------------------
+    ''' <summary>
+    ''' Path to the CSV/Excel file that defines, per timestep, how many agents
+    ''' of each fleet type (<c>archipelago</c>, <c>coastal</c>, <c>trawler</c>)
+    ''' the FIBE coupling should instantiate. Empty = fixed agent numbers.
+    ''' </summary>
+    ''' -----------------------------------------------------------------------
+    Public Property AgentNumbersFile() As String
+        Get
+            Return CStr(Me.GetVariable(eVarNameFlags.EcospaceAgentNumbersFile))
+        End Get
+        Set(value As String)
+            Me.SetVariable(eVarNameFlags.EcospaceAgentNumbersFile, If(value, ""))
+        End Set
+    End Property
 
     Public Property TotalTime() As Single
         Get

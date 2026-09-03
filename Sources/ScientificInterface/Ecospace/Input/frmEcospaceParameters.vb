@@ -106,6 +106,13 @@ Namespace Ecospace
         ' FIBE coupling: fleet selection for the fleets managed by FIBE
         Private WithEvents m_clbFIBEFleets As CheckedListBox = Nothing
 
+        ' FIBE coupling: temporal agent numbers file (CSV/Excel per date/fleet type)
+        Private WithEvents m_lblAgentNumbersFile As Label = Nothing
+        Private WithEvents m_tbxAgentNumbersFile As TextBox = Nothing
+        Private WithEvents m_btnAgentNumbersFile As Button = Nothing
+        Private WithEvents m_btnClearAgentNumbersFile As Button = Nothing
+        Private m_IsLayingOutTemporalAgentControls As Boolean = False
+
         ' FIBE coupling: restricted areas tab
         Private WithEvents m_tcMain As TabControl = Nothing
         Private WithEvents m_tpEcospace As TabPage = Nothing
@@ -115,9 +122,23 @@ Namespace Ecospace
         Private WithEvents m_btnRemoveZone As Button = Nothing
         Private WithEvents m_btnBrowseZone As Button = Nothing
         Private WithEvents m_cbVectorFleet As ComboBox = Nothing
+        Private WithEvents m_cbVectorYear As ComboBox = Nothing
+        Private WithEvents m_btnImportVector As Button = Nothing
         Private WithEvents m_dgvVector As DataGridView = Nothing
         Private m_cfgRestrictedAreas As cRestrictedAreasConfig = Nothing
         Private m_bLoadingVector As Boolean = False
+        Private Const c_AllYearsDisplay As String = "All"
+
+        ' FIBE coupling: initial agents tab (one row per agent, step 1 only)
+        Private WithEvents m_tpAgents As TabPage = Nothing
+        Private WithEvents m_dgvAgents As DataGridView = Nothing
+        Private WithEvents m_btnAddAgent As Button = Nothing
+        Private WithEvents m_btnRemoveAgent As Button = Nothing
+        Private WithEvents m_btnImportAgents As Button = Nothing
+        Private WithEvents m_btnExportAgents As Button = Nothing
+        Private WithEvents m_lblAgentCounts As Label = Nothing
+        Private m_cfgAgents As cFibeAgentsConfig = Nothing
+        Private m_bLoadingAgents As Boolean = False
 
 #End Region ' Private vars
 
@@ -159,13 +180,23 @@ Namespace Ecospace
             Me.m_bpUseOtherModel = DirectCast(propMan.GetProperty(parms, eVarNameFlags.UseOtherModel), cBooleanProperty)
             Me.m_fpUseOtherModel = New cPropertyFormatProvider(Me.UIContext, Me.m_Couplage, Me.m_bpUseOtherModel)
 
+            Me.ConfigureTemporalAgentContainer()
+
             ' FIBE coupling: build the fleet selection list
             Me.InitializeFIBEFleetList()
+
+            ' FIBE coupling: temporal agent numbers file (CSV/Excel per fleet/date)
+            Me.InitializeTemporalAgentControls()
+            Me.LoadAgentNumbersFile()
 
             ' FIBE coupling: restricted areas tab
             Me.InitializeRestrictedAreasTab()
             Me.m_cfgRestrictedAreas = parms.GetRestrictedAreasConfig()
             Me.LoadRestrictedZones()
+
+            ' FIBE coupling: initial agents tab (step 1 situation)
+            Me.m_cfgAgents = parms.GetFibeAgentsConfig()
+            Me.LoadAgents()
 
             Me.m_clbAutosave.Items.Clear()
             For n As Integer = 1 To parms.nResultWriters
@@ -507,10 +538,11 @@ Namespace Ecospace
                 Me.m_bpUseOtherModel.SetValue(Me.m_Couplage.Checked)
             End If
 
-            ' FIBE coupling: show/hide the fleet selection
+            ' FIBE coupling: show/hide the fleet selection and temporal agent file
             If Me.m_clbFIBEFleets IsNot Nothing Then
                 Me.m_clbFIBEFleets.Visible = Me.m_Couplage.Checked
             End If
+            Me.UpdateTemporalAgentControlsVisibility()
 
         End Sub
 
@@ -560,6 +592,649 @@ Namespace Ecospace
 
         End Sub
 
+        ' -------------------------------------------------------------------
+        ' Configure le conteneur qui doit pouvoir grandir lorsque les
+        ' contrôles temporels sont ajoutés.
+        ' -------------------------------------------------------------------
+        Private Sub ConfigureTemporalAgentContainer()
+
+            If Me.m_tlpStuff Is Nothing Then Return
+            If Me.m_plUseOtherModel Is Nothing Then Return
+
+            Me.SuspendLayout()
+            Me.m_tlpStuff.SuspendLayout()
+
+            Try
+
+                ' Le formulaire doit pouvoir afficher une zone plus grande
+                ' que sa zone visible.
+                Me.AutoScroll = True
+
+                ' Le TableLayoutPanel doit grandir verticalement.
+                Me.m_tlpStuff.AutoSize = True
+                Me.m_tlpStuff.AutoSizeMode = AutoSizeMode.GrowAndShrink
+                Me.m_tlpStuff.Dock = DockStyle.Top
+
+                ' Le panel occupe toute la cellule de la ligne 5.
+                Me.m_plUseOtherModel.AutoSize = False
+                Me.m_plUseOtherModel.Dock = DockStyle.Fill
+
+                ' La ligne 5 sera pilotée explicitement par le layout.
+                If Me.m_tlpStuff.RowStyles.Count > 5 Then
+
+                    Me.m_tlpStuff.RowStyles(5).SizeType =
+                        SizeType.Absolute
+
+                End If
+
+            Finally
+
+                Me.m_tlpStuff.ResumeLayout(True)
+                Me.ResumeLayout(True)
+
+            End Try
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Build the controls that let the user pick the CSV/Excel file defining
+        ''' the temporal number of agents per fleet type.
+        '''
+        ''' <para>
+        ''' Fichier attendu (<c>Agents_number.csv</c> — malgré l'extension, c'est
+        ''' souvent un <c>.xlsx</c>) :
+        ''' <list type="bullet">
+        '''   <item><description>Col A = date (sérial Excel ou ISO, une ligne par pas de temps)</description></item>
+        '''   <item><description>Cols B.. = une colonne par type de flottille 
+        '''   (<c>archipelago</c>, <c>coastal</c>, <c>trawler</c>) avec le nombre
+        '''   d'agents à instancier à cette date.</description></item>
+        ''' </list>
+        ''' Ce fichier sera lu par le couplage FIBE à l'initialisation et à
+        ''' chaque pas de temps pour faire varier le nombre d'agents. Cette
+        ''' méthode ne fait que l'UI (sélection + persistance du chemin) —
+        ''' le parsing/usage moteur viendra en phase 2.
+        ''' </para>
+        '''
+        ''' <para>Layout : label + TextBox readonly + bouton "Temporal number agent"
+        ''' + bouton "Clear", tous ancrés pour se redimensionner avec le panel
+        ''' <c>m_plUseOtherModel</c>. Leur visibilité suit la checkbox FIBE.</para>
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub InitializeTemporalAgentControls()
+
+            If Me.m_plUseOtherModel Is Nothing Then Return
+
+            ' Éviter une double création des contrôles
+            If Me.m_lblAgentNumbersFile IsNot Nothing Then Return
+
+            Me.m_plUseOtherModel.SuspendLayout()
+
+            Try
+
+                ' ---------------------------------------------------------
+                ' LABEL
+                ' ---------------------------------------------------------
+                Me.m_lblAgentNumbersFile = New Label()
+
+                With Me.m_lblAgentNumbersFile
+                    .Name = "m_lblAgentNumbersFile"
+                    .Text =
+                        "Temporal agent numbers file (per fleet type / date):"
+                    .AutoSize = False
+                    .Anchor =
+                        AnchorStyles.Top Or
+                        AnchorStyles.Left Or
+                        AnchorStyles.Right
+                    .Visible = Me.m_Couplage.Checked
+                End With
+
+
+                ' ---------------------------------------------------------
+                ' TEXTBOX
+                ' ---------------------------------------------------------
+                Me.m_tbxAgentNumbersFile = New TextBox()
+
+                With Me.m_tbxAgentNumbersFile
+                    .Name = "m_tbxAgentNumbersFile"
+                    .ReadOnly = True
+                    .BorderStyle = BorderStyle.FixedSingle
+                    .BackColor = SystemColors.Window
+                    .Anchor =
+                        AnchorStyles.Top Or
+                        AnchorStyles.Left Or
+                        AnchorStyles.Right
+                    .Visible = Me.m_Couplage.Checked
+                End With
+
+
+                ' ---------------------------------------------------------
+                ' BOUTON BROWSE
+                ' ---------------------------------------------------------
+                Me.m_btnAgentNumbersFile = New Button()
+
+                With Me.m_btnAgentNumbersFile
+                    .Name = "m_btnAgentNumbersFile"
+                    .Text = "Temporal number agent"
+                    .AutoSize = False
+                    .Anchor =
+                        AnchorStyles.Top Or
+                        AnchorStyles.Right
+                    .Visible = Me.m_Couplage.Checked
+                End With
+
+
+                ' ---------------------------------------------------------
+                ' BOUTON CLEAR
+                ' ---------------------------------------------------------
+                Me.m_btnClearAgentNumbersFile = New Button()
+
+                With Me.m_btnClearAgentNumbersFile
+                    .Name = "m_btnClearAgentNumbersFile"
+                    .Text = "Clear"
+                    .AutoSize = False
+                    .Anchor =
+                        AnchorStyles.Top Or
+                        AnchorStyles.Right
+                    .Visible = Me.m_Couplage.Checked
+                End With
+
+
+                ' ---------------------------------------------------------
+                ' AJOUT AU PANEL
+                ' ---------------------------------------------------------
+                Me.m_plUseOtherModel.Controls.Add(
+                    Me.m_lblAgentNumbersFile
+                )
+
+                Me.m_plUseOtherModel.Controls.Add(
+                    Me.m_tbxAgentNumbersFile
+                )
+
+                Me.m_plUseOtherModel.Controls.Add(
+                    Me.m_btnAgentNumbersFile
+                )
+
+                Me.m_plUseOtherModel.Controls.Add(
+                    Me.m_btnClearAgentNumbersFile
+                )
+
+
+                ' Mettre les nouveaux contrôles au premier plan
+                Me.m_lblAgentNumbersFile.BringToFront()
+                Me.m_tbxAgentNumbersFile.BringToFront()
+                Me.m_btnAgentNumbersFile.BringToFront()
+                Me.m_btnClearAgentNumbersFile.BringToFront()
+
+            Finally
+
+                Me.m_plUseOtherModel.ResumeLayout(True)
+
+            End Try
+
+
+            ' Premier calcul
+            Me.LayoutTemporalAgentControls()
+
+
+            ' Recalcul lorsque la largeur du panel change
+            AddHandler Me.m_plUseOtherModel.SizeChanged,
+                AddressOf Me.OnTemporalAgentPanelResize
+
+
+            ' Recalcul après le premier affichage réel
+            If Me.IsHandleCreated Then
+
+                Me.BeginInvoke(
+                    New MethodInvoker(
+                        Sub()
+                            Me.LayoutTemporalAgentControls()
+                        End Sub
+                    )
+                )
+
+            End If
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' (Re)position the temporal-agent controls to fill the width of
+        ''' <c>m_plUseOtherModel</c>. Called at creation and on every resize.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub LayoutTemporalAgentControls()
+
+            If m_IsLayingOutTemporalAgentControls Then Return
+
+            If Me.m_plUseOtherModel Is Nothing Then Return
+            If Me.m_tlpStuff Is Nothing Then Return
+
+            If Me.m_tbxAgentNumbersFile Is Nothing Then Return
+            If Me.m_btnAgentNumbersFile Is Nothing Then Return
+            If Me.m_btnClearAgentNumbersFile Is Nothing Then Return
+            If Me.m_lblAgentNumbersFile Is Nothing Then Return
+            If Me.m_clbFIBEFleets Is Nothing Then Return
+
+
+            Dim panelWidth As Integer =
+                Me.m_plUseOtherModel.ClientSize.Width
+
+            If panelWidth <= 0 Then Return
+
+
+            m_IsLayingOutTemporalAgentControls = True
+
+            Me.m_plUseOtherModel.SuspendLayout()
+            Me.m_tlpStuff.SuspendLayout()
+
+            Try
+
+                Dim margin As Integer = 10
+                Dim gap As Integer = 6
+
+                Dim clearWidth As Integer = 70
+                Dim browseWidth As Integer = 175
+
+                Dim buttonHeight As Integer = 25
+
+
+                ' ---------------------------------------------------------
+                ' POSITION DU LABEL
+                ' ---------------------------------------------------------
+
+                Dim labelTop As Integer =
+                    Me.m_clbFIBEFleets.Bottom + 10
+
+
+                Me.m_lblAgentNumbersFile.AutoSize = False
+
+                Me.m_lblAgentNumbersFile.Location =
+                    New Point(
+                        margin,
+                        labelTop
+                    )
+
+                Me.m_lblAgentNumbersFile.Size =
+                    New Size(
+                        Math.Max(
+                            100,
+                            panelWidth - (margin * 2)
+                        ),
+                        22
+                    )
+
+
+                ' ---------------------------------------------------------
+                ' TEXTBOX
+                ' ---------------------------------------------------------
+
+                Dim textTop As Integer =
+                    Me.m_lblAgentNumbersFile.Bottom + 4
+
+
+                Me.m_tbxAgentNumbersFile.Location =
+                    New Point(
+                        margin,
+                        textTop
+                    )
+
+
+                Me.m_tbxAgentNumbersFile.Size =
+                    New Size(
+                        Math.Max(
+                            100,
+                            panelWidth - (margin * 2)
+                        ),
+                        23
+                    )
+
+
+                ' ---------------------------------------------------------
+                ' BOUTONS
+                ' ---------------------------------------------------------
+
+                Dim buttonTop As Integer =
+                    Me.m_tbxAgentNumbersFile.Bottom + 6
+
+
+                ' Clear complètement à droite
+                Me.m_btnClearAgentNumbersFile.Size =
+                    New Size(
+                        clearWidth,
+                        buttonHeight
+                    )
+
+
+                Me.m_btnClearAgentNumbersFile.Location =
+                    New Point(
+                        panelWidth - margin - clearWidth,
+                        buttonTop
+                    )
+
+
+                ' Bouton Browse à gauche du bouton Clear
+                Me.m_btnAgentNumbersFile.Size =
+                    New Size(
+                        browseWidth,
+                        buttonHeight
+                    )
+
+
+                Me.m_btnAgentNumbersFile.Location =
+                    New Point(
+                        Me.m_btnClearAgentNumbersFile.Left -
+                        gap -
+                        browseWidth,
+                        buttonTop
+                    )
+
+
+                ' ---------------------------------------------------------
+                ' CALCUL DE LA HAUTEUR NECESSAIRE
+                ' ---------------------------------------------------------
+
+                Dim neededHeight As Integer =
+                    Me.m_btnClearAgentNumbersFile.Bottom + 10
+
+
+                ' Ne jamais réduire en dessous des contrôles existants
+                Dim minimumHeight As Integer = 0
+
+                If Me.m_hdrUseOtherModel IsNot Nothing Then
+
+                    minimumHeight =
+                        Math.Max(
+                            minimumHeight,
+                            Me.m_hdrUseOtherModel.Bottom + 5
+                        )
+
+                End If
+
+
+                If Me.m_Couplage IsNot Nothing Then
+
+                    minimumHeight =
+                        Math.Max(
+                            minimumHeight,
+                            Me.m_Couplage.Bottom + 5
+                        )
+
+                End If
+
+
+                If Me.m_clbFIBEFleets IsNot Nothing Then
+
+                    minimumHeight =
+                        Math.Max(
+                            minimumHeight,
+                            Me.m_clbFIBEFleets.Bottom + 10
+                        )
+
+                End If
+
+
+                neededHeight =
+                    Math.Max(
+                        neededHeight,
+                        minimumHeight
+                    )
+
+
+                ' ---------------------------------------------------------
+                ' IMPORTANT :
+                ' AGRANDIR LE PANEL
+                ' ---------------------------------------------------------
+
+                If Math.Abs(
+                    Me.m_plUseOtherModel.Height -
+                    neededHeight
+                ) > 1 Then
+
+                    Me.m_plUseOtherModel.Height =
+                        neededHeight
+
+                End If
+
+
+                ' ---------------------------------------------------------
+                ' IMPORTANT :
+                ' AGRANDIR LA LIGNE 5 DU TABLELAYOUTPANEL
+                ' ---------------------------------------------------------
+
+                If Me.m_tlpStuff.RowStyles.Count > 5 Then
+
+                    Me.m_tlpStuff.RowStyles(5).SizeType =
+                        SizeType.Absolute
+
+
+                    If Math.Abs(
+                        Me.m_tlpStuff.RowStyles(5).Height -
+                        CSng(neededHeight)
+                    ) > 1.0F Then
+
+                        Me.m_tlpStuff.RowStyles(5).Height =
+                            CSng(neededHeight)
+
+                    End If
+
+                End If
+
+
+                ' Forcer le recalcul de la taille totale
+                Me.m_tlpStuff.PerformLayout()
+
+            Finally
+
+                Me.m_tlpStuff.ResumeLayout(True)
+                Me.m_plUseOtherModel.ResumeLayout(True)
+
+                m_IsLayingOutTemporalAgentControls = False
+
+            End Try
+
+        End Sub
+
+        ''' <summary>Handles the resize event of the temporal agent panel.</summary>
+        ''' <param name="sender">The source of the event.</param>
+        ''' <param name="e">The event data.</param>
+        Private Sub OnTemporalAgentPanelResize(sender As Object, e As EventArgs)
+            Me.LayoutTemporalAgentControls()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Show/hide the temporal agent controls with the FIBE coupling.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub UpdateTemporalAgentControlsVisibility()
+
+            Dim bVisible As Boolean = False
+
+            Try
+
+                bVisible = Me.m_Couplage.Checked
+
+            Catch
+
+                bVisible = False
+
+            End Try
+
+
+            If Me.m_lblAgentNumbersFile IsNot Nothing Then
+
+                Me.m_lblAgentNumbersFile.Visible =
+                    bVisible
+
+            End If
+
+
+            If Me.m_tbxAgentNumbersFile IsNot Nothing Then
+
+                Me.m_tbxAgentNumbersFile.Visible =
+                    bVisible
+
+            End If
+
+
+            If Me.m_btnAgentNumbersFile IsNot Nothing Then
+
+                Me.m_btnAgentNumbersFile.Visible =
+                    bVisible
+
+            End If
+
+
+            If Me.m_btnClearAgentNumbersFile IsNot Nothing Then
+
+                Me.m_btnClearAgentNumbersFile.Visible =
+                    bVisible
+
+            End If
+
+
+            ' Recalculer la taille et la zone scrollable
+            Me.LayoutTemporalAgentControls()
+
+
+            If Me.m_tlpStuff IsNot Nothing Then
+
+                Me.m_tlpStuff.PerformLayout()
+
+            End If
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Load the persisted agent-numbers file path from the core into the
+        ''' textbox. Shows <c>&lt;not set&gt;</c> when empty.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub LoadAgentNumbersFile()
+
+            If (Me.Core Is Nothing) Then Return
+            If (Me.m_tbxAgentNumbersFile Is Nothing) Then Return
+
+            Try
+                Dim strPath As String = ""
+                Try
+                    strPath = Me.Core.EcospaceModelParameters.AgentNumbersFile
+                Catch ex As Exception
+                    strPath = ""
+                End Try
+
+                If String.IsNullOrWhiteSpace(strPath) Then
+                    Me.m_tbxAgentNumbersFile.Text = SharedResources.GENERIC_VALUE_NOTSET
+                    Me.m_tbxAgentNumbersFile.ForeColor = SystemColors.GrayText
+                    Me.m_btnClearAgentNumbersFile.Enabled = False
+                Else
+                    Me.m_tbxAgentNumbersFile.Text = strPath
+                    Me.m_tbxAgentNumbersFile.ForeColor = SystemColors.WindowText
+                    Me.m_btnClearAgentNumbersFile.Enabled = True
+                    ' Warn (non-blocking) if the file no longer exists on disk
+                    If (Not File.Exists(strPath)) Then
+                        Me.m_logger.LogWarning("Temporal agent file not found on disk: {FilePath}", strPath)
+                    End If
+                End If
+            Catch ex As Exception
+                Me.m_logger.LogError(ex, "Failed to load temporal agent file path into UI")
+            End Try
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Persist the given path into the core (and the underlying
+        ''' <c>cEcospaceDataStructures.AgentNumbersFile</c> via sync) and
+        ''' refresh the textbox. Called by the browse/clear handlers.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub SaveAgentNumbersFile(strPath As String)
+
+            If (Me.Core Is Nothing) Then Return
+
+            Dim strSanitized As String = If(strPath, "").Trim()
+            Try
+                Me.Core.EcospaceModelParameters.AgentNumbersFile = strSanitized
+            Catch ex As Exception
+                Me.m_logger.LogError(ex, "Failed to persist temporal agent file path: {FilePath}", strSanitized)
+            End Try
+
+            Me.LoadAgentNumbersFile()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Handler for the "Temporal number agent..." button. Opens an
+        ''' OpenFileDialog that accepts <c>.csv</c>, <c>.xlsx</c>/<c>.xls</c>
+        ''' (the sample <c>Agents_number.csv</c> is in fact a ZIP/Excel file)
+        ''' and plain text as fallback. Basic validation is done before saving.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnBrowseAgentNumbersFile(sender As Object, e As EventArgs) Handles m_btnAgentNumbersFile.Click
+
+            If (Me.Core Is Nothing) Then Return
+
+            Dim strCurrent As String = ""
+            Try
+                strCurrent = Me.Core.EcospaceModelParameters.AgentNumbersFile
+            Catch
+            End Try
+
+            Using dlg As New OpenFileDialog()
+                dlg.Title = "Select temporal agent numbers file"
+                dlg.Filter = "CSV / Excel files (*.csv;*.xlsx;*.xls)|*.csv;*.xlsx;*.xls|CSV files (*.csv)|*.csv|Excel files (*.xlsx;*.xls)|*.xlsx;*.xls|All files (*.*)|*.*"
+                dlg.FilterIndex = 1
+                dlg.CheckFileExists = True
+                dlg.CheckPathExists = True
+                dlg.Multiselect = False
+                dlg.RestoreDirectory = True
+
+                If (Not String.IsNullOrWhiteSpace(strCurrent)) Then
+                    Try
+                        dlg.InitialDirectory = Path.GetDirectoryName(strCurrent)
+                        dlg.FileName = Path.GetFileName(strCurrent)
+                    Catch
+                    End Try
+                End If
+
+                If dlg.ShowDialog(Me) <> DialogResult.OK Then Return
+
+                Dim strChosen As String = dlg.FileName
+
+                ' ---- Light validation (non-blocking) ------------------------
+                ' We only check that the file can be opened and that its first
+                ' line/row contains at least a date column + one fleet column.
+                ' Full parsing (Excel serial dates, variable fleet count, time
+                ' interpolation) belongs to the engine (phase 2).
+                Try
+                    Dim fi As New FileInfo(strChosen)
+                    If (fi.Length = 0) Then
+                        MessageBox.Show(Me,
+                                        "The selected file is empty.",
+                                        "Temporal agent file",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Warning)
+                        Return
+                    End If
+                Catch ex As Exception
+                    Me.m_logger.LogWarning(ex, "Could not stat agent file {FilePath}", strChosen)
+                End Try
+
+                Me.SaveAgentNumbersFile(strChosen)
+
+            End Using
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Handler for the "Clear" button — unsets the file path.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnClearAgentNumbersFile(sender As Object, e As EventArgs) Handles m_btnClearAgentNumbersFile.Click
+            Me.SaveAgentNumbersFile("")
+        End Sub
+
         ''' -------------------------------------------------------------------
         ''' <summary>
         ''' Event handler; called when the user toggles the FIBE checkbox of a fleet.
@@ -581,8 +1256,8 @@ Namespace Ecospace
 
         ''' -------------------------------------------------------------------
         ''' <summary>
-        ''' Wrap the existing Ecospace parameter content and the new restricted
-        ''' areas editor in a two-tab layout. The existing content is moved
+        ''' Wrap the existing Ecospace parameter content and the new FIBE
+        ''' editors in a three-tab layout. The existing content is moved
         ''' unchanged into the first tab page.
         ''' </summary>
         ''' -------------------------------------------------------------------
@@ -604,15 +1279,22 @@ Namespace Ecospace
             Me.m_tpRestrictedZones.Dock = DockStyle.Fill
             Me.m_tpRestrictedZones.Name = "m_tpRestrictedZones"
 
+            Me.m_tpAgents = New TabPage()
+            Me.m_tpAgents.Text = "Agents (FIBE)"
+            Me.m_tpAgents.Dock = DockStyle.Fill
+            Me.m_tpAgents.Name = "m_tpAgents"
+
             ' Move the existing content into the first tab page
             Me.Controls.Remove(Me.m_tlpStuff)
             Me.m_tpEcospace.Controls.Add(Me.m_tlpStuff)
             Me.m_tlpStuff.Dock = DockStyle.Fill
 
             Me.BuildRestrictedZonesTab()
+            Me.BuildAgentsTab()
 
             Me.m_tcMain.TabPages.Add(Me.m_tpEcospace)
             Me.m_tcMain.TabPages.Add(Me.m_tpRestrictedZones)
+            Me.m_tcMain.TabPages.Add(Me.m_tpAgents)
             Me.Controls.Add(Me.m_tcMain)
             Me.m_tcMain.BringToFront()
 
@@ -720,24 +1402,29 @@ Namespace Ecospace
             gbZones.Controls.Add(tlpZones)
 
             ' ----------------------------------------------------------------
-            ' Section 2: per-fleet seasonal restrictions
+            ' Section 2: per-fleet, per-year seasonal restrictions
             ' ----------------------------------------------------------------
             Dim gbVector As New GroupBox()
-            gbVector.Text = "Seasonal restrictions (per fleet)"
+            gbVector.Text = "Seasonal restrictions (per fleet / per year)"
             gbVector.Dock = DockStyle.Fill
             gbVector.Name = "m_gbRestrictedVector"
 
             Dim tlpVector As New TableLayoutPanel()
             tlpVector.Dock = DockStyle.Fill
-            tlpVector.ColumnCount = 2
+            tlpVector.ColumnCount = 6
             tlpVector.RowCount = 2
             tlpVector.RowStyles.Add(New RowStyle(SizeType.Absolute, 32))
             tlpVector.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 120))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 50))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 130))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 50))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 110))
+            tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 110))
             tlpVector.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
             tlpVector.Padding = New Padding(6)
             tlpVector.Name = "m_tlpVector"
 
+            ' Fleet selector
             Dim lblFleet As New Label()
             lblFleet.Text = "Fleet:"
             lblFleet.Dock = DockStyle.Fill
@@ -756,13 +1443,33 @@ Namespace Ecospace
             End If
             tlpVector.Controls.Add(Me.m_cbVectorFleet, 1, 0)
 
+            ' Year filter
+            Dim lblYear As New Label()
+            lblYear.Text = "Year:"
+            lblYear.Dock = DockStyle.Fill
+            lblYear.TextAlign = ContentAlignment.MiddleLeft
+            tlpVector.Controls.Add(lblYear, 2, 0)
+
+            Me.m_cbVectorYear = New ComboBox()
+            Me.m_cbVectorYear.Dock = DockStyle.Fill
+            Me.m_cbVectorYear.DropDownStyle = ComboBoxStyle.DropDownList
+            Me.m_cbVectorYear.Name = "m_cbVectorYear"
+            tlpVector.Controls.Add(Me.m_cbVectorYear, 3, 0)
+
+            ' Import button for sparse interval CSV
+            Me.m_btnImportVector = New Button()
+            Me.m_btnImportVector.Text = "Import CSV..."
+            Me.m_btnImportVector.Dock = DockStyle.Fill
+            Me.m_btnImportVector.Name = "m_btnImportVector"
+            tlpVector.Controls.Add(Me.m_btnImportVector, 4, 0)
+
             Me.m_dgvVector = New DataGridView()
             Me.m_dgvVector.Dock = DockStyle.Fill
             Me.m_dgvVector.AllowUserToAddRows = False
             Me.m_dgvVector.AllowUserToDeleteRows = False
             Me.m_dgvVector.AllowUserToResizeRows = False
             Me.m_dgvVector.RowHeadersVisible = True
-            Me.m_dgvVector.RowHeadersWidth = 120
+            Me.m_dgvVector.RowHeadersWidth = 150
             Me.m_dgvVector.MultiSelect = False
             Me.m_dgvVector.SelectionMode = DataGridViewSelectionMode.CellSelect
             Me.m_dgvVector.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
@@ -782,7 +1489,7 @@ Namespace Ecospace
             Next
 
             tlpVector.Controls.Add(Me.m_dgvVector, 0, 1)
-            tlpVector.SetColumnSpan(Me.m_dgvVector, 2)
+            tlpVector.SetColumnSpan(Me.m_dgvVector, 6)
 
             gbVector.Controls.Add(tlpVector)
 
@@ -791,6 +1498,474 @@ Namespace Ecospace
 
             Me.m_tpRestrictedZones.Controls.Add(tlpRoot)
 
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Build the "Agents (FIBE)" tab content: a grid with one row per
+        ''' initial agent (flottille, name, port, habitats, wave threshold),
+        ''' an add/remove/import/export button row and a per-fleet counter.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub BuildAgentsTab()
+
+            Dim tlpRoot As New TableLayoutPanel()
+            tlpRoot.Dock = DockStyle.Fill
+            tlpRoot.ColumnCount = 1
+            tlpRoot.RowCount = 1
+            tlpRoot.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+            tlpRoot.Padding = New Padding(6)
+            tlpRoot.Name = "m_tlpAgents"
+
+            Dim gbAgents As New GroupBox()
+            gbAgents.Text = "Initial agents (one row per agent; counts evolve via Agents_number.csv)"
+            gbAgents.Dock = DockStyle.Fill
+            gbAgents.Name = "m_gbAgents"
+
+            Dim tlpAgents As New TableLayoutPanel()
+            tlpAgents.Dock = DockStyle.Fill
+            tlpAgents.ColumnCount = 1
+            tlpAgents.RowCount = 4
+            tlpAgents.RowStyles.Add(New RowStyle(SizeType.Absolute, 24))
+            tlpAgents.RowStyles.Add(New RowStyle(SizeType.Absolute, 22))
+            tlpAgents.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+            tlpAgents.RowStyles.Add(New RowStyle(SizeType.Absolute, 40))
+            tlpAgents.Padding = New Padding(6)
+            tlpAgents.Name = "m_tlpAgentList"
+
+            Dim lbl As New Label()
+            lbl.Text = "Agents modelled by the FIBE coupling (initial situation, static fields kept all run). Import a ';' separated CSV or add rows manually."
+            lbl.AutoSize = True
+            lbl.Dock = DockStyle.Top
+            tlpAgents.Controls.Add(lbl, 0, 0)
+
+            Me.m_lblAgentCounts = New Label()
+            Me.m_lblAgentCounts.Text = "0 archipelago / 0 coastal / 0 trawler (total 0)"
+            Me.m_lblAgentCounts.AutoSize = True
+            Me.m_lblAgentCounts.Dock = DockStyle.Top
+            Me.m_lblAgentCounts.Name = "m_lblAgentCounts"
+            tlpAgents.Controls.Add(Me.m_lblAgentCounts, 0, 1)
+
+            Me.m_dgvAgents = New DataGridView()
+            Me.m_dgvAgents.Dock = DockStyle.Fill
+            Me.m_dgvAgents.AllowUserToAddRows = True
+            Me.m_dgvAgents.AllowUserToDeleteRows = True
+            Me.m_dgvAgents.RowHeadersVisible = False
+            Me.m_dgvAgents.MultiSelect = False
+            Me.m_dgvAgents.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            Me.m_dgvAgents.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            Me.m_dgvAgents.EditMode = DataGridViewEditMode.EditOnEnter
+            Me.m_dgvAgents.Name = "m_dgvAgents"
+
+            Dim colFleet As New DataGridViewComboBoxColumn()
+            colFleet.HeaderText = "Flottille"
+            colFleet.Name = "m_colAgentFleet"
+            colFleet.FillWeight = 18
+            For Each strFleet As String In cFibeAgentsConfig.FIBEFleetTypes
+                colFleet.Items.Add(strFleet)
+            Next
+            Me.m_dgvAgents.Columns.Add(colFleet)
+
+            Dim colName As New DataGridViewTextBoxColumn()
+            colName.HeaderText = "Name"
+            colName.Name = "m_colAgentName"
+            colName.FillWeight = 20
+            Me.m_dgvAgents.Columns.Add(colName)
+
+            Dim colPort As New DataGridViewTextBoxColumn()
+            colPort.HeaderText = "Port number"
+            colPort.Name = "m_colAgentPort"
+            colPort.FillWeight = 14
+            Me.m_dgvAgents.Columns.Add(colPort)
+
+            Dim colHabs As New DataGridViewTextBoxColumn()
+            colHabs.HeaderText = "Habitats"
+            colHabs.Name = "m_colAgentHabitats"
+            colHabs.FillWeight = 28
+            Me.m_dgvAgents.Columns.Add(colHabs)
+
+            Dim colWave As New DataGridViewTextBoxColumn()
+            colWave.HeaderText = "Wave height threshold"
+            colWave.Name = "m_colAgentWave"
+            colWave.FillWeight = 20
+            Me.m_dgvAgents.Columns.Add(colWave)
+
+            tlpAgents.Controls.Add(Me.m_dgvAgents, 0, 2)
+
+            Dim tlpButtons As New TableLayoutPanel()
+            tlpButtons.Dock = DockStyle.Fill
+            tlpButtons.ColumnCount = 5
+            tlpButtons.RowCount = 1
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 90))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 90))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 110))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 110))
+            tlpButtons.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+            tlpButtons.Name = "m_tlpAgentButtons"
+
+            Me.m_btnAddAgent = New Button()
+            Me.m_btnAddAgent.Text = "Add"
+            Me.m_btnAddAgent.Width = 80
+            Me.m_btnAddAgent.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnAddAgent.Name = "m_btnAddAgent"
+            tlpButtons.Controls.Add(Me.m_btnAddAgent, 0, 0)
+
+            Me.m_btnRemoveAgent = New Button()
+            Me.m_btnRemoveAgent.Text = "Remove"
+            Me.m_btnRemoveAgent.Width = 80
+            Me.m_btnRemoveAgent.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnRemoveAgent.Name = "m_btnRemoveAgent"
+            tlpButtons.Controls.Add(Me.m_btnRemoveAgent, 1, 0)
+
+            Me.m_btnImportAgents = New Button()
+            Me.m_btnImportAgents.Text = "Import CSV..."
+            Me.m_btnImportAgents.Width = 100
+            Me.m_btnImportAgents.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnImportAgents.Name = "m_btnImportAgents"
+            tlpButtons.Controls.Add(Me.m_btnImportAgents, 2, 0)
+
+            Me.m_btnExportAgents = New Button()
+            Me.m_btnExportAgents.Text = "Export CSV..."
+            Me.m_btnExportAgents.Width = 100
+            Me.m_btnExportAgents.Anchor = AnchorStyles.Left Or AnchorStyles.Top
+            Me.m_btnExportAgents.Name = "m_btnExportAgents"
+            tlpButtons.Controls.Add(Me.m_btnExportAgents, 3, 0)
+
+            tlpAgents.Controls.Add(tlpButtons, 0, 3)
+
+            gbAgents.Controls.Add(tlpAgents)
+            tlpRoot.Controls.Add(gbAgents, 0, 0)
+            Me.m_tpAgents.Controls.Add(tlpRoot)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Load the initial agents from the core configuration into the grid.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub LoadAgents()
+
+            If (Me.m_cfgAgents Is Nothing) Then Return
+            If (Me.m_dgvAgents Is Nothing) Then Return
+
+            Me.m_bLoadingAgents = True
+            Try
+                Me.m_dgvAgents.Rows.Clear()
+                For Each agent As cFibeAgent In Me.m_cfgAgents.Agents
+                    Me.m_dgvAgents.Rows.Add(
+                        agent.Flottille,
+                        agent.Name,
+                        agent.PortNumber.ToString(CultureInfo.InvariantCulture),
+                        String.Join(",", agent.Habitats.ToArray()),
+                        agent.WaveThreshold.ToString(CultureInfo.InvariantCulture))
+                Next
+                Me.UpdateAgentCounts()
+            Finally
+                Me.m_bLoadingAgents = False
+            End Try
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Refresh the per-fleet agent counter label from the grid content.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub UpdateAgentCounts()
+
+            If (Me.m_lblAgentCounts Is Nothing) Then Return
+            Dim nArchi As Integer = 0, nCoast As Integer = 0, nTrawl As Integer = 0
+            If (Me.m_dgvAgents IsNot Nothing) Then
+                For Each row As DataGridViewRow In Me.m_dgvAgents.Rows
+                    If row.IsNewRow Then Continue For
+                    Dim sFleet As String = If(row.Cells(0).Value Is Nothing, "", row.Cells(0).Value.ToString())
+                    Select Case sFleet.Trim().ToLowerInvariant()
+                        Case "archipelago", "archipelagos" : nArchi += 1
+                        Case "coastal", "coastals" : nCoast += 1
+                        Case "trawler", "trawlers" : nTrawl += 1
+                        Case "" ' Empty new row, not counted
+                        Case Else : nArchi += 0 ' Unknown fleet, reported by SaveAgents
+                    End Select
+                Next
+            End If
+            Dim nTotal As Integer = nArchi + nCoast + nTrawl
+            Me.m_lblAgentCounts.Text = String.Format(
+                "{0} archipelago / {1} coastal / {2} trawler (total {3})",
+                nArchi, nCoast, nTrawl, nTotal)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Store the agents from the grid back into the core configuration.
+        ''' Rows with an empty name are ignored. Invalid rows are reported
+        ''' with a warning and skipped (grid content is preserved).
+        ''' </summary>
+        ''' <returns>True when the grid holds no blocking error.</returns>
+        ''' -------------------------------------------------------------------
+        Private Function SaveAgents() As Boolean
+
+            If (Me.m_bLoadingAgents) Then Return True
+            If (Me.m_cfgAgents Is Nothing) Then Return True
+            If (Me.m_dgvAgents Is Nothing) Then Return True
+
+            Dim agents As New List(Of cFibeAgent)
+            Dim seen As New Dictionary(Of String, Integer)(StringComparer.OrdinalIgnoreCase)
+            Dim nRow As Integer = 0
+            For Each row As DataGridViewRow In Me.m_dgvAgents.Rows
+                If row.IsNewRow Then Continue For
+                nRow += 1
+                Dim sFleet As String = If(row.Cells(0).Value Is Nothing, "", row.Cells(0).Value.ToString()).Trim()
+                Dim sName As String = If(row.Cells(1).Value Is Nothing, "", row.Cells(1).Value.ToString()).Trim()
+                Dim sPort As String = If(row.Cells(2).Value Is Nothing, "", row.Cells(2).Value.ToString()).Trim()
+                Dim sHabs As String = If(row.Cells(3).Value Is Nothing, "", row.Cells(3).Value.ToString()).Trim()
+                Dim sWave As String = If(row.Cells(4).Value Is Nothing, "", row.Cells(4).Value.ToString()).Trim()
+
+                ' Skip fully empty rows (allows clearing the grid)
+                If (String.IsNullOrEmpty(sFleet) AndAlso String.IsNullOrEmpty(sName) AndAlso
+                    String.IsNullOrEmpty(sPort) AndAlso String.IsNullOrEmpty(sHabs) AndAlso
+                    String.IsNullOrEmpty(sWave)) Then Continue For
+
+                ' Lenient default: empty fleet falls back to archipelago only when
+                ' the user typed a name (avoids blocking manual entry)
+                Dim fleet As String = cFibeAgentsConfig.CanonicalFleet(sFleet)
+                If (String.IsNullOrEmpty(fleet)) Then
+                    m_logger.LogWarning("FIBE coupling: invalid fleet '{Fleet}' at grid row {Row}, row skipped", sFleet, nRow)
+                    MessageBox.Show(Me,
+                                    String.Format("Invalid fleet '{0}' at row {1}. Expected one of: {2}. Row skipped.",
+                                                  sFleet, nRow, String.Join(", ", cFibeAgentsConfig.FIBEFleetTypes)),
+                                    "Agents (FIBE)",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning)
+                    Return False
+                End If
+                If (String.IsNullOrWhiteSpace(sName)) Then
+                    m_logger.LogWarning("FIBE coupling: missing agent name at grid row {Row}, row skipped", nRow)
+                    MessageBox.Show(Me,
+                                    String.Format("Missing agent name at row {0}. Names must be unique and non-empty.", nRow),
+                                    "Agents (FIBE)",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning)
+                    Return False
+                End If
+                If (seen.ContainsKey(sName)) Then
+                    m_logger.LogWarning("FIBE coupling: duplicate agent name '{Name}' at grid row {Row}", sName, nRow)
+                    MessageBox.Show(Me,
+                                    String.Format("Duplicate agent name '{0}' at row {1}. Names must be unique.", sName, nRow),
+                                    "Agents (FIBE)",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning)
+                    Return False
+                End If
+                Dim port As Integer
+                If (String.IsNullOrEmpty(sPort)) Then
+                    port = 0
+                ElseIf (Not Integer.TryParse(sPort, NumberStyles.Integer, CultureInfo.InvariantCulture, port) OrElse port < 0) Then
+                    m_logger.LogWarning("FIBE coupling: invalid port number '{Port}' at grid row {Row}", sPort, nRow)
+                    MessageBox.Show(Me,
+                                    String.Format("Invalid port number '{0}' at row {1}. Expected an integer >= 0.", sPort, nRow),
+                                    "Agents (FIBE)",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning)
+                    Return False
+                End If
+                Dim wave As Double = 0
+                Dim waveOk As Boolean = Double.TryParse(sWave, NumberStyles.Float, CultureInfo.InvariantCulture, wave) AndAlso wave > 0
+                If (Not waveOk) Then
+                    waveOk = Double.TryParse(sWave.Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, wave) AndAlso wave > 0
+                End If
+                If (String.IsNullOrEmpty(sWave)) Then
+                    wave = cFibeAgentsConfig.DefaultWaveThreshold
+                    waveOk = True
+                End If
+                If (Not waveOk) Then
+                    m_logger.LogWarning("FIBE coupling: invalid wave threshold '{Wave}' at grid row {Row}", sWave, nRow)
+                    MessageBox.Show(Me,
+                                    String.Format("Invalid wave height threshold '{0}' at row {1}. Expected a number > 0.", sWave, nRow),
+                                    "Agents (FIBE)",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Warning)
+                    Return False
+                End If
+                Dim habs As New List(Of String)
+                If (Not String.IsNullOrEmpty(sHabs)) Then
+                    For Each h As String In sHabs.Split(","c)
+                        Dim t As String = If(h, "").Trim()
+                        If (String.IsNullOrEmpty(t)) Then Continue For
+                        Dim exists As Boolean = False
+                        For Each e As String In habs
+                            If (String.Equals(e, t, StringComparison.OrdinalIgnoreCase)) Then
+                                exists = True
+                                Exit For
+                            End If
+                        Next
+                        If (Not exists) Then habs.Add(t)
+                    Next
+                End If
+
+                seen(sName) = nRow
+                agents.Add(New cFibeAgent With {
+                    .Flottille = fleet,
+                    .Name = sName,
+                    .PortNumber = port,
+                    .Habitats = habs,
+                    .WaveThreshold = wave
+                })
+            Next
+
+            Me.m_cfgAgents.Agents = agents
+            Me.PersistAgents()
+            Me.UpdateAgentCounts()
+            Return True
+
+        End Function
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Write the agents configuration to the core.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub PersistAgents()
+
+            If (Me.m_cfgAgents Is Nothing) Then Return
+            If (Me.Core Is Nothing) Then Return
+
+            Dim parms As cEcospaceModelParameters = Me.Core.EcospaceModelParameters()
+            parms.SetFibeAgentsConfig(Me.m_cfgAgents)
+            m_logger.LogInformation("FIBE coupling: persisted {Count} initial agents", Me.m_cfgAgents.Agents.Count)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Add a new empty agent row and focus it.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnAddAgent(sender As Object, e As EventArgs) Handles m_btnAddAgent.Click
+
+            If (Me.m_dgvAgents Is Nothing) Then Return
+
+            Dim iRow As Integer = Me.m_dgvAgents.Rows.Add("", "", "", "", "")
+            Me.m_dgvAgents.CurrentCell = Me.m_dgvAgents.Rows(iRow).Cells(0)
+            Me.m_dgvAgents.BeginEdit(False)
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Remove the selected agent row.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnRemoveAgent(sender As Object, e As EventArgs) Handles m_btnRemoveAgent.Click
+
+            If (Me.m_dgvAgents Is Nothing) Then Return
+            If (Me.m_dgvAgents.CurrentRow Is Nothing) Then Return
+            If (Me.m_dgvAgents.CurrentRow.IsNewRow) Then Return
+
+            Me.m_dgvAgents.Rows.Remove(Me.m_dgvAgents.CurrentRow)
+            Me.SaveAgents()
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Handle the Import CSV button: pick a per-agent file
+        ''' (flottille;name;port number;habitats;wave height threshold),
+        ''' REPLACE the current grid content, and report errors with line numbers.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnImportAgents(sender As Object, e As EventArgs) Handles m_btnImportAgents.Click
+            If (Me.m_cfgAgents Is Nothing) Then Return
+
+            Using dlg As New OpenFileDialog()
+                dlg.Title = "Import FIBE initial agents"
+                dlg.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+                dlg.FilterIndex = 1
+                dlg.CheckFileExists = True
+                dlg.CheckPathExists = True
+                dlg.Multiselect = False
+                dlg.RestoreDirectory = True
+                If (dlg.ShowDialog(Me) <> DialogResult.OK) Then Return
+
+                Dim candidate As New cFibeAgentsConfig()
+                Dim err As String = ""
+                If (candidate.ImportCsv(dlg.FileName, err)) Then
+                    Me.m_cfgAgents = candidate
+                    Me.PersistAgents()
+                    Me.LoadAgents()
+                    m_logger.LogInformation("FIBE coupling: imported {Count} initial agents from {File}", candidate.Agents.Count, dlg.FileName)
+                    MessageBox.Show(Me,
+                                    String.Format("Import successful: {0} agent(s) loaded from {1}.", candidate.Agents.Count, Path.GetFileName(dlg.FileName)),
+                                    "Import agents",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information)
+                Else
+                    m_logger.LogError("FIBE coupling: agent import failed for {File}: {Error}", dlg.FileName, err)
+                    MessageBox.Show(Me,
+                                    err,
+                                    "Import failed",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error)
+                End If
+            End Using
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Handle the Export CSV button: save the grid as a per-agent CSV.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnExportAgents(sender As Object, e As EventArgs) Handles m_btnExportAgents.Click
+            If (Me.m_cfgAgents Is Nothing) Then Return
+            If (Not Me.SaveAgents()) Then Return
+
+            Using dlg As New SaveFileDialog()
+                dlg.Title = "Export FIBE initial agents"
+                dlg.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+                dlg.FilterIndex = 1
+                dlg.RestoreDirectory = True
+                dlg.FileName = "fibe_agents.csv"
+                If (dlg.ShowDialog(Me) <> DialogResult.OK) Then Return
+                Try
+                    Me.m_cfgAgents.ExportCsv(dlg.FileName)
+                    m_logger.LogInformation("FIBE coupling: exported {Count} initial agents to {File}", Me.m_cfgAgents.Agents.Count, dlg.FileName)
+                    MessageBox.Show(Me,
+                                    String.Format("Export successful: {0} agent(s) written to {1}.", Me.m_cfgAgents.Agents.Count, Path.GetFileName(dlg.FileName)),
+                                    "Export agents",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information)
+                Catch ex As Exception
+                    m_logger.LogError(ex, "FIBE coupling: failed to export agents to {File}", dlg.FileName)
+                    MessageBox.Show(Me,
+                                    String.Format("Export failed: {0}", ex.Message),
+                                    "Export failed",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error)
+                End Try
+            End Using
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Persist the agents whenever the user finishes editing a cell.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnAgentsCellEndEdit(sender As Object, e As DataGridViewCellEventArgs) _
+            Handles m_dgvAgents.CellEndEdit
+            Me.SaveAgents()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>Persist the agents when the user deletes a row directly in the grid.</summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnAgentsUserDeletedRow(sender As Object, e As DataGridViewRowEventArgs) _
+            Handles m_dgvAgents.UserDeletedRow
+            Me.SaveAgents()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Swallow combo-box formatting errors (e.g. empty fleet cell on a new
+        ''' row). The row is validated later by <see cref="SaveAgents"/>.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnAgentsDataError(sender As Object, e As DataGridViewDataErrorEventArgs) _
+            Handles m_dgvAgents.DataError
+            e.ThrowException = False
+            e.Cancel = False
         End Sub
 
         ''' -------------------------------------------------------------------
@@ -986,9 +2161,84 @@ Namespace Ecospace
 
         ''' -------------------------------------------------------------------
         ''' <summary>
-        ''' Synchronize the per-fleet restriction matrices with the current
-        ''' zone list: grow or shrink every matrix so that row i matches
-        ''' zone i. New rows default to <see cref="eRestrictedAreaStatus.Open"/>.
+        ''' Return the inclusive simulation year range [firstYear, lastYear]
+        ''' derived from the core (EcosimFirstYear + TotalTime). Used to
+        ''' size the per-year restriction matrices and the year filter.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Function GetSimulationYearRange() As Tuple(Of Integer, Integer)
+            Dim firstYear As Integer = 2019
+            Dim lastYear As Integer = 2019
+            Try
+                If (Me.Core IsNot Nothing) Then
+                    firstYear = Me.Core.EcosimFirstYear()
+                    If (firstYear <= 0) Then firstYear = DateTime.Now.Year
+                    Dim totalYears As Integer = 20
+                    Dim parms As cEcospaceModelParameters = Me.Core.EcospaceModelParameters()
+                    Dim obj As Object = Nothing
+                    Try
+                        obj = parms.GetVariable(eVarNameFlags.TotalTime)
+                    Catch
+                    End Try
+                    If (obj IsNot Nothing) Then
+                        Dim f As Single = 0
+                        If (Single.TryParse(obj.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, f)) Then
+                            totalYears = CInt(Math.Ceiling(f))
+                        ElseIf (Not Integer.TryParse(obj.ToString(), totalYears)) Then
+                            totalYears = 20
+                        End If
+                    ElseIf (Me.m_tbTotalTime IsNot Nothing) Then
+                        Dim t As String = Me.m_tbTotalTime.Text.Replace("""", "").Trim()
+                        If (Not Integer.TryParse(t, totalYears)) Then totalYears = 20
+                    End If
+                    If (totalYears < 1) Then totalYears = 1
+                    lastYear = firstYear + totalYears - 1
+                ElseIf (Me.m_cfgRestrictedAreas IsNot Nothing) Then
+                    Dim yrs As List(Of Integer) = Me.m_cfgRestrictedAreas.GetAllYears()
+                    If (yrs.Count > 0) Then
+                        firstYear = yrs(0)
+                        lastYear = yrs(yrs.Count - 1)
+                    End If
+                End If
+            Catch
+            End Try
+            If (lastYear < firstYear) Then lastYear = firstYear
+            Return Tuple.Create(firstYear, lastYear)
+        End Function
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Populate the year filter combo with "All" plus each simulation year.
+        ''' Preserves the current selection when possible.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub UpdateVectorYearFilter()
+            If (Me.m_cbVectorYear Is Nothing) Then Return
+            Dim yrRange As Tuple(Of Integer, Integer) = Me.GetSimulationYearRange()
+            Dim firstYear As Integer = yrRange.Item1
+            Dim lastYear As Integer = yrRange.Item2
+            Dim prevSel As String = c_AllYearsDisplay
+            If (Me.m_cbVectorYear.SelectedItem IsNot Nothing) Then
+                prevSel = Me.m_cbVectorYear.SelectedItem.ToString()
+            End If
+            Me.m_cbVectorYear.Items.Clear()
+            Me.m_cbVectorYear.Items.Add(c_AllYearsDisplay)
+            For yr As Integer = firstYear To lastYear
+                Me.m_cbVectorYear.Items.Add(yr.ToString())
+            Next
+            Dim idx As Integer = Me.m_cbVectorYear.Items.IndexOf(prevSel)
+            If (idx >= 0) Then
+                Me.m_cbVectorYear.SelectedIndex = idx
+            Else
+                Me.m_cbVectorYear.SelectedIndex = 0
+            End If
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Synchronize the per-fleet, per-year restriction matrices with the
+        ''' current zone list and simulation year range. Grows or shrinks every
+        ''' matrix so that row i matches zone i. New cells default to open.
         ''' </summary>
         ''' -------------------------------------------------------------------
         Private Sub SyncVectorToZones()
@@ -996,33 +2246,51 @@ Namespace Ecospace
             If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
 
             Dim nZones As Integer = Me.m_cfgRestrictedAreas.Zones.Count
+            Dim yrRange As Tuple(Of Integer, Integer) = Me.GetSimulationYearRange()
+            Dim firstYear As Integer = yrRange.Item1
+            Dim lastYear As Integer = yrRange.Item2
 
-            For Each strFleet As String In cRestrictedAreasConfig.FIBEFleetTypes
-                If (Not Me.m_cfgRestrictedAreas.Vector.ContainsKey(strFleet)) Then Continue For
-                Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.Vector(strFleet)
-                If (matrix.Length = nZones) Then Continue For
+            ' Ensure matrices exist for every fleet/year in the simulation
+            Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones)
 
-                Dim resized(nZones - 1)() As Integer
-                For i As Integer = 0 To nZones - 1
-                    If (i < matrix.Length) Then
-                        resized(i) = matrix(i)
-                    Else
-                        resized(i) = New Integer(cRestrictedAreasConfig.nMonths - 1) {}
-                        For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
-                            resized(i)(m) = CInt(eRestrictedAreaStatus.Open)
+            ' Resize any out-of-range years that may exist from imports
+            For Each fleetDict As Dictionary(Of Integer, Integer()()) In Me.m_cfgRestrictedAreas.Vector.Values
+                Dim years As New List(Of Integer)(fleetDict.Keys)
+                For Each yr As Integer In years
+                    Dim mat As Integer()() = fleetDict(yr)
+                    If (mat Is Nothing OrElse mat.Length <> nZones) Then
+                        Dim resized(nZones - 1)() As Integer
+                        For i As Integer = 0 To nZones - 1
+                            If (mat IsNot Nothing AndAlso i < mat.Length AndAlso mat(i) IsNot Nothing) Then
+                                resized(i) = mat(i)
+                                If (resized(i).Length <> cRestrictedAreasConfig.nMonths) Then
+                                    resized(i) = New Integer(cRestrictedAreasConfig.nMonths - 1) {}
+                                    For mm As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                                        resized(i)(mm) = CInt(eRestrictedAreaStatus.Open)
+                                    Next
+                                End If
+                            Else
+                                resized(i) = New Integer(cRestrictedAreasConfig.nMonths - 1) {}
+                                For mm As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                                    resized(i)(mm) = CInt(eRestrictedAreaStatus.Open)
+                                Next
+                            End If
                         Next
+                        fleetDict(yr) = resized
                     End If
                 Next
-                Me.m_cfgRestrictedAreas.Vector(strFleet) = resized
             Next
 
+            Me.UpdateVectorYearFilter()
             Me.LoadVectorGrid()
 
         End Sub
 
         ''' -------------------------------------------------------------------
         ''' <summary>
-        ''' (Re)load the restriction grid for the currently selected fleet.
+        ''' (Re)load the restriction grid for the currently selected fleet and
+        ''' year filter. When "All" is selected, rows are zone × year stacked
+        ''' (e.g. "zone_1 [2019]"), otherwise only the selected year is shown.
         ''' </summary>
         ''' -------------------------------------------------------------------
         Private Sub LoadVectorGrid()
@@ -1034,18 +2302,54 @@ Namespace Ecospace
 
             Dim strFleet As String = Me.m_cbVectorFleet.SelectedItem.ToString()
             Dim nZones As Integer = Me.m_cfgRestrictedAreas.Zones.Count
-            Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.GetOrCreateVector(strFleet, nZones)
+            If (nZones = 0) Then
+                Me.m_dgvVector.Rows.Clear()
+                Return
+            End If
+
+            Dim yrRange As Tuple(Of Integer, Integer) = Me.GetSimulationYearRange()
+            Dim firstYear As Integer = yrRange.Item1
+            Dim lastYear As Integer = yrRange.Item2
+
+            ' Ensure data exists before reading
+            Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones)
+
+            ' Determine year filter
+            Dim filterYear As Integer = -1 ' -1 = All
+            If (Me.m_cbVectorYear IsNot Nothing AndAlso Me.m_cbVectorYear.SelectedItem IsNot Nothing) Then
+                Dim s As String = Me.m_cbVectorYear.SelectedItem.ToString()
+                If (s <> c_AllYearsDisplay) Then
+                    Integer.TryParse(s, filterYear)
+                End If
+            End If
+
+            Dim years As New List(Of Integer)
+            If (filterYear = -1) Then
+                For yr As Integer = firstYear To lastYear
+                    years.Add(yr)
+                Next
+            Else
+                years.Add(filterYear)
+            End If
 
             Me.m_bLoadingVector = True
             Try
                 Me.m_dgvVector.Rows.Clear()
-                For i As Integer = 0 To nZones - 1
-                    Dim iRow As Integer = Me.m_dgvVector.Rows.Add()
-                    Me.m_dgvVector.Rows(iRow).HeaderCell.Value = Me.m_cfgRestrictedAreas.Zones(i).Name
-                    For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
-                        Dim status As eRestrictedAreaStatus = CType(matrix(i)(m), eRestrictedAreaStatus)
-                        Me.m_dgvVector.Rows(iRow).Cells(m).Value = StatusDisplay(status)
+                For Each yr As Integer In years
+                    Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.GetOrCreateVector(strFleet, yr, nZones)
+                    For iZone As Integer = 0 To nZones - 1
+                        Dim iRow As Integer = Me.m_dgvVector.Rows.Add()
+                        Dim row As DataGridViewRow = Me.m_dgvVector.Rows(iRow)
+                        row.HeaderCell.Value = String.Format("{0} [{1}]", Me.m_cfgRestrictedAreas.Zones(iZone).Name, yr)
+                        row.Tag = Tuple.Create(yr, iZone)
+                        For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
+                            Dim st As eRestrictedAreaStatus = CType(matrix(iZone)(m), eRestrictedAreaStatus)
+                            row.Cells(m).Value = StatusDisplay(st)
+                        Next
                     Next
+                Next
+                For Each row As DataGridViewRow In Me.m_dgvVector.Rows
+                    row.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft
                 Next
             Finally
                 Me.m_bLoadingVector = False
@@ -1055,8 +2359,8 @@ Namespace Ecospace
 
         ''' -------------------------------------------------------------------
         ''' <summary>
-        ''' Store the restriction grid of the currently selected fleet back into
-        ''' the configuration and persist it.
+        ''' Store the restriction grid of the currently selected fleet/year view
+        ''' back into the configuration and persist it. Row.Tag holds (year, zoneIdx).
         ''' </summary>
         ''' -------------------------------------------------------------------
         Private Sub SaveVectorGrid()
@@ -1069,17 +2373,22 @@ Namespace Ecospace
 
             Dim strFleet As String = Me.m_cbVectorFleet.SelectedItem.ToString()
             Dim nZones As Integer = Me.m_cfgRestrictedAreas.Zones.Count
-            Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.GetOrCreateVector(strFleet, nZones)
 
-            For i As Integer = 0 To Me.m_dgvVector.Rows.Count - 1
-                If (i >= nZones) Then Exit For
+            For Each row As DataGridViewRow In Me.m_dgvVector.Rows
+                If (row.Tag Is Nothing) Then Continue For
+                Dim tup As Tuple(Of Integer, Integer) = TryCast(row.Tag, Tuple(Of Integer, Integer))
+                If (tup Is Nothing) Then Continue For
+                Dim yr As Integer = tup.Item1
+                Dim zIdx As Integer = tup.Item2
+                If (zIdx < 0 OrElse zIdx >= nZones) Then Continue For
+                Dim matrix As Integer()() = Me.m_cfgRestrictedAreas.GetOrCreateVector(strFleet, yr, nZones)
                 For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
-                    Dim value As Object = Me.m_dgvVector.Rows(i).Cells(m).Value
-                    Dim status As eRestrictedAreaStatus = eRestrictedAreaStatus.Open
-                    If (value IsNot Nothing) Then
-                        status = StatusFromDisplay(value.ToString())
+                    Dim v As Object = row.Cells(m).Value
+                    Dim st As eRestrictedAreaStatus = eRestrictedAreaStatus.Open
+                    If (v IsNot Nothing) Then
+                        st = StatusFromDisplay(v.ToString())
                     End If
-                    matrix(i)(m) = CInt(status)
+                    matrix(zIdx)(m) = CInt(st)
                 Next
             Next
 
@@ -1098,12 +2407,80 @@ Namespace Ecospace
 
         ''' -------------------------------------------------------------------
         ''' <summary>
+        ''' Reload when the year filter changes.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnVectorYearChanged(sender As Object, e As EventArgs) Handles m_cbVectorYear.SelectedIndexChanged
+            Me.LoadVectorGrid()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
         ''' Persist the restriction grid whenever the user edits a status.
         ''' </summary>
         ''' -------------------------------------------------------------------
         Private Sub OnVectorCellValueChanged(sender As Object, e As DataGridViewCellEventArgs) _
             Handles m_dgvVector.CellValueChanged
             Me.SaveVectorGrid()
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Handle the Import CSV button: let the user pick a sparse interval
+        ''' file (flottille;zone;debut;fin;statut / fleet;zone;start;end;status),
+        ''' replace the current vector, and report conflicts with line numbers.
+        ''' Rows with statut "ouvert"/"open" are silently ignored.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnImportVector(sender As Object, e As EventArgs) Handles m_btnImportVector.Click
+            If (Me.m_cfgRestrictedAreas Is Nothing) Then Return
+            If (Me.m_cfgRestrictedAreas.Zones.Count = 0) Then
+                MessageBox.Show(Me,
+                                "Please define at least one zone in the table above before importing a CSV.",
+                                "Import restricted areas",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning)
+                Return
+            End If
+
+            Using dlg As New OpenFileDialog()
+                dlg.Title = "Import restricted areas (sparse intervals)"
+                dlg.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+                dlg.FilterIndex = 1
+                dlg.CheckFileExists = True
+                dlg.CheckPathExists = True
+                dlg.Multiselect = False
+                dlg.RestoreDirectory = True
+                If (dlg.ShowDialog(Me) <> DialogResult.OK) Then Return
+
+                Dim yrRange As Tuple(Of Integer, Integer) = Me.GetSimulationYearRange()
+                Dim firstYear As Integer = yrRange.Item1
+                Dim lastYear As Integer = yrRange.Item2
+
+                ' Replace existing vector: clear and re-ensure year range as all-open
+                Me.m_cfgRestrictedAreas.Vector.Clear()
+                Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, Me.m_cfgRestrictedAreas.Zones.Count)
+
+                Dim err As String = ""
+                If (Me.m_cfgRestrictedAreas.ImportSparseCsv(dlg.FileName, err)) Then
+                    Me.PersistRestrictedAreas()
+                    Me.LoadVectorGrid()
+                    MessageBox.Show(Me,
+                                    String.Format("Import successful from {0}.", Path.GetFileName(dlg.FileName)),
+                                    "Import restricted areas",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information)
+                Else
+                    ' Revert to persisted state and reload
+                    Me.m_cfgRestrictedAreas = Me.Core.EcospaceModelParameters().GetRestrictedAreasConfig()
+                    Me.LoadVectorGrid()
+                    MessageBox.Show(Me,
+                                    err,
+                                    "Import failed",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Error)
+                End If
+            End Using
         End Sub
 
         ''' -------------------------------------------------------------------
@@ -1196,7 +2573,9 @@ Namespace Ecospace
             If ts.iTimeStep = 1 Then
                 Me.SaveStaticMaps(targetFolder)
                 Me.ExportRestrictedAreas(targetFolder)
+                Me.ExportFibeAgents(targetFolder)
             End If
+            Me.ExportAgentNumbers(targetFolder)
             Me.SaveOffVesselPriceToTxt(ts, targetFolder)
             Me.SaveLandingsToTxt(ts, targetFolder)
             Me.SaveBiomassMapToTxt(map, fileName, ts)
@@ -1232,13 +2611,13 @@ Namespace Ecospace
             Dim timeStep As Integer = ts.iTimeStep
 
             If timeStep = 1 Then
-                fileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "install_FIBE.ps1")
-                Me.RunInstallScript(fileName)
+                Dim installScriptPath As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "install_FIBE.ps1")
+                Me.RunInstallScript(installScriptPath)
             End If
 
             Dim count As Integer = timeStep * 28 - 28
 
-            Dim basePath As String = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE", "diatome", "results", "biomass")
+            Dim basePath As String = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE", "results", "biomass")
             Dim targetFileName As String = $"agent_{count}.csv"
             Dim fullPath As String = System.IO.Path.Combine(basePath, targetFileName)
             Dim runTime As TextBox = Me.m_tbTotalTime
@@ -1493,8 +2872,9 @@ Namespace Ecospace
         ''' <summary>
         ''' Export the restricted areas configuration for the FIBE coupling:
         ''' <list type="bullet">
-        ''' <item><description>the per-fleet restriction matrix as a CSV file
-        ''' readable by diatome (fleet blocks of zone x month status lines);</description></item>
+        ''' <item><description>the per-fleet, per-year restriction intervals as
+        ''' a sparse CSV (flottille;zone;debut;fin;statut) readable by diatome;
+        ''' only non-open intervals are written, inclusive, MM/YYYY;</description></item>
         ''' <item><description>a JSON file ("restricted_zones.json") with the
         ''' "restricted_area_map" and "restricted_area_vector" entries that
         ''' CreateJSON.ps1 merges into the diatome config.</description></item>
@@ -1513,46 +2893,20 @@ Namespace Ecospace
             End If
 
             Try
-                ' --- 1. Per-fleet restriction matrix CSV --------------------
+                ' --- 1. Sparse interval CSV (per-fleet, per-year) -----------
                 Dim vecFolder As String = Path.GetFullPath(Path.Combine(targetFolder, "RestrictedArea"))
                 If Not Directory.Exists(vecFolder) Then
                     Directory.CreateDirectory(vecFolder)
                 End If
                 Dim vecPath As String = Path.Combine(vecFolder, "restricted_area_vector.csv")
 
-                Dim aMonths() As String = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-                Dim sb As New System.Text.StringBuilder()
-                For Each strFleet As String In cRestrictedAreasConfig.FIBEFleetTypes
-                    If (Not cfg.Vector.ContainsKey(strFleet)) Then Continue For
-                    Dim matrix As Integer()() = cfg.Vector(strFleet)
-                    If (matrix.Length = 0) Then Continue For
+                Dim yrRange As Tuple(Of Integer, Integer) = Me.GetSimulationYearRange()
+                Dim firstYear As Integer = yrRange.Item1
+                Dim lastYear As Integer = yrRange.Item2
 
-                    sb.Append(strFleet)
-                    For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
-                        sb.Append(";").Append(aMonths(m))
-                    Next
-                    sb.AppendLine()
-
-                    For i As Integer = 0 To Math.Min(matrix.Length, cfg.Zones.Count) - 1
-                        sb.Append(cfg.Zones(i).Name)
-                        For m As Integer = 0 To cRestrictedAreasConfig.nMonths - 1
-                            Dim status As eRestrictedAreaStatus = CType(matrix(i)(m), eRestrictedAreaStatus)
-                            Select Case status
-                                Case eRestrictedAreaStatus.Navigation
-                                    sb.Append(";").Append("navigable")
-                                Case eRestrictedAreaStatus.Closed
-                                    sb.Append(";").Append("fermé")
-                                Case Else
-                                    sb.Append(";").Append("ouvert")
-                            End Select
-                        Next
-                        sb.AppendLine()
-                    Next
-                Next
-
-                ' diatome reads the CSV as latin-1 ("fermé" contains accents)
-                Dim latin1 As System.Text.Encoding = System.Text.Encoding.GetEncoding(28591)
-                System.IO.File.WriteAllText(vecPath, sb.ToString(), latin1)
+                ' Ensure matrices exist for the full simulation horizon before export
+                cfg.EnsureYearRange(firstYear, lastYear, cfg.Zones.Count)
+                cfg.ExportSparseCsv(vecPath, firstYear, lastYear)
                 m_logger.LogInformation("FIBE coupling: restricted area vector exported to {Path}", vecPath)
 
                 ' --- 2. JSON fragment for CreateJSON.ps1 ---------------------
@@ -1574,11 +2928,80 @@ Namespace Ecospace
 
         End Sub
 
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Export the initial FIBE agents (Agents tab) for the coupling.
+        ''' Writes an aggregated per-fleet JSON file ("fibe_agents.json")
+        ''' that CreateJSON.ps1 merges into config.json at step 1 only.
+        ''' An empty grid exports nothing (FIBE keeps config_default.json).
+        ''' </summary>
+        ''' <param name="targetFolder">Coupling data folder (Couplage/Data).</param>
+        ''' -------------------------------------------------------------------
+        Private Sub ExportFibeAgents(targetFolder As String)
+
+            If (Me.Core Is Nothing) Then Return
+
+            Dim cfg As cFibeAgentsConfig = Nothing
+            Try
+                cfg = Me.Core.EcospaceModelParameters().GetFibeAgentsConfig()
+            Catch ex As Exception
+                m_logger.LogWarning("FIBE coupling: could not read initial agents configuration: {Message}", ex.Message)
+                Return
+            End Try
+            If (cfg Is Nothing OrElse cfg.Agents.Count = 0) Then
+                m_logger.LogInformation("FIBE coupling: no initial agents configured, skipping fibe agents export (config_default.json kept)")
+                Return
+            End If
+
+            Try
+                Dim json As Newtonsoft.Json.Linq.JObject = cfg.ToFibeJson()
+                Dim counts As Dictionary(Of String, Integer) = cfg.GetCounts()
+
+                ' Soft validation: the FIBE ports map is only known at run time,
+                ' so a suspicious port index only triggers a warning here.
+                For Each a As cFibeAgent In cfg.Agents
+                    If (a.PortNumber < 0) Then
+                        m_logger.LogWarning("FIBE coupling: agent '{Name}' has a negative port index {Port}", a.Name, a.PortNumber)
+                    End If
+                Next
+
+                Dim jsonPath As String = Path.Combine(targetFolder, "fibe_agents.json")
+                Dim tmpPath As String = jsonPath & ".tmp"
+                System.IO.File.WriteAllText(tmpPath, json.ToString(Newtonsoft.Json.Formatting.None))
+                If System.IO.File.Exists(jsonPath) Then
+                    System.IO.File.Replace(tmpPath, jsonPath, Nothing)
+                Else
+                    System.IO.File.Move(tmpPath, jsonPath)
+                End If
+                m_logger.LogInformation(
+                    "FIBE coupling: initial agents exported to {Path} (archipelago={A}, coastal={C}, trawler={T})",
+                    jsonPath, counts("archipelago"), counts("coastal"), counts("trawler"))
+            Catch ex As Exception
+                m_logger.LogError(ex, "FIBE coupling: failed to export initial agents")
+            End Try
+
+        End Sub
+
+        Private Sub ExportAgentNumbers(targetFolder As String)
+            Dim strPath As String = ""
+            Try : strPath = Me.Core.EcospaceModelParameters.AgentNumbersFile : Catch : End Try
+            If String.IsNullOrWhiteSpace(strPath) OrElse Not File.Exists(strPath) Then Return
+            Try
+                Dim json As New Newtonsoft.Json.Linq.JObject()
+                json("agent_numbers_file") = strPath
+                Dim jsonPath As String = Path.Combine(targetFolder, "agent_numbers.json")
+                File.WriteAllText(jsonPath, json.ToString(Newtonsoft.Json.Formatting.None))
+                m_logger.LogInformation("FIBE coupling: agent numbers file exported to {Path}", jsonPath)
+            Catch ex As Exception
+                m_logger.LogError(ex, "FIBE coupling: failed to export agent numbers")
+            End Try
+        End Sub
+
         Private Function GetInstallScriptContent() As String
             Dim sb As New System.Text.StringBuilder()
             sb.AppendLine("$scriptDir = $PSScriptRoot")
             sb.AppendLine("$scriptDirParent = (Get-Item $scriptDir).Parent.Parent.FullName")
-            sb.AppendLine("$fibePath = Join-Path $scriptDirParent ""FIBE\diatome""")
+            sb.AppendLine("$fibePath = Join-Path $scriptDirParent ""FIBE""")
             sb.AppendLine("")
             sb.AppendLine("if (Test-Path $fibePath) {")
             sb.AppendLine("    exit")
@@ -1656,8 +3079,10 @@ Namespace Ecospace
             sb.AppendLine("New-Item -Path (Split-Path $LogFile) -ItemType Directory -Force | Out-Null")
             sb.AppendLine("")
             sb.AppendLine("function Run-Python([string]$Script, [string]$Arg) {")
+            sb.AppendLine("    $venvPython = Join-Path (Split-Path (Split-Path $scriptDir -Parent) -Parent) ""FIBE\venv\Scripts\python.exe""")
+            sb.AppendLine("    if (Test-Path $venvPython) { $py = $venvPython } else { $py = ""python"" }")
             sb.AppendLine("    try {")
-            sb.AppendLine("        $out = & python $Script $Arg 2>&1 | ForEach-Object { $_.ToString() } | Out-String")
+            sb.AppendLine("        $out = & $py $Script $Arg 2>&1 | Out-String")
             sb.AppendLine("        $code = $LASTEXITCODE")
             sb.AppendLine("    } catch {")
             sb.AppendLine("        $out = ""EXCEPTION: "" + $_.Exception.Message")
@@ -1708,12 +3133,20 @@ Namespace Ecospace
             sb.AppendLine("Run-Python $pythonScript $InputFile")
             sb.AppendLine("")
 
+            sb.AppendLine("$createJsonPath = Join-Path (Split-Path (Split-Path $scriptDir -Parent) -Parent) ""CreateJSON.ps1""")
             sb.AppendLine("try {")
-            sb.AppendLine("    $out = & "".\..\..\CreateJSON.ps1"" $TimeStep $runTime $FirstYear " & sWest & " " & sNorth & " " & sCellSize & " 2>&1 | Out-String")
+            sb.AppendLine("    $out = & $createJsonPath $TimeStep $runTime $FirstYear " & sWest & " " & sNorth & " " & sCellSize & " 2>&1 | Out-String")
+            sb.AppendLine("    $code = $LASTEXITCODE")
+            sb.AppendLine("    $out | Out-File -FilePath $LogFile -Append -Encoding utf8")
+            sb.AppendLine("    if ($code -ne 0) {")
+            sb.AppendLine("        (""ERROR: CreateJSON.ps1 exited with code "" + $code) | Out-File -FilePath $LogFile -Append -Encoding utf8")
+            sb.AppendLine("        exit $code")
+            sb.AppendLine("    }")
             sb.AppendLine("} catch {")
             sb.AppendLine("    $out = ""EXCEPTION: "" + $_.Exception.Message")
+            sb.AppendLine("    $out | Out-File -FilePath $LogFile -Append -Encoding utf8")
+            sb.AppendLine("    exit 1")
             sb.AppendLine("}")
-            sb.AppendLine("$out | Out-File -FilePath $LogFile -Append -Encoding utf8")
 
             Return sb.ToString()
         End Function
@@ -1763,7 +3196,7 @@ Namespace Ecospace
         Private Sub StartFIBESimulation()
 
             Dim baseDir As String = AppDomain.CurrentDomain.BaseDirectory
-            Dim diatomePath As String = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE", "diatome"))
+            Dim diatomePath As String = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "..", "Couplage", "FIBE"))
             Dim venvPython As String = Path.Combine(diatomePath, "venv", "Scripts", "python.exe")
             Dim configPath As String = Path.Combine(diatomePath, "configs_json", "config.json")
 

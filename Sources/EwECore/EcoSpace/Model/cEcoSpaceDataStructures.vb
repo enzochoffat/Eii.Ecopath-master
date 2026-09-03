@@ -565,6 +565,11 @@ Public Class cEcospaceDataStructures
     Public ByPassIntegrate() As Boolean
 
     Public UseOtherModel As Boolean
+    ''' <summary>
+    ''' Full path to the CSV/Excel file that defines the temporal number of
+    ''' agents per fleet type for the FIBE coupling. Empty = not configured.
+    ''' </summary>
+    Public AgentNumbersFile As String = ""
     Public UseIBM As Boolean
     Public UseExact As Boolean
 

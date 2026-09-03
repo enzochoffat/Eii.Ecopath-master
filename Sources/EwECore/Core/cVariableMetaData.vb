@@ -423,6 +423,8 @@ Public Class cVariableMetaData
         Me.Metadata(eVarNameFlags.UseOtherModel) = New cVariableMetaData(False)
         Me.Metadata(eVarNameFlags.EcospaceRestrictedAreaMap) = New cVariableMetaData(60000)
         Me.Metadata(eVarNameFlags.EcospaceRestrictedAreaVector) = New cVariableMetaData(60000)
+        Me.Metadata(eVarNameFlags.EcospaceAgentNumbersFile) = New cVariableMetaData(1024)
+        Me.Metadata(eVarNameFlags.EcospaceFibeAgents) = New cVariableMetaData(60000)
         Me.Metadata(eVarNameFlags.EcospaceIBMMovePacketOnStanza) = New cVariableMetaData(False)
         Me.Metadata(eVarNameFlags.IFDPower) = New cVariableMetaData(0, Single.MaxValue, gt, lt, 0.5)
         Me.Metadata(eVarNameFlags.EcospaceUseCoreOutputDir) = New cVariableMetaData(True)

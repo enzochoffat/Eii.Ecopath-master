@@ -10768,6 +10768,7 @@ Public Class cCore
 
             m_EcospaceModelParams.IFDPower = m_EcospaceData.IFDPower
             m_EcospaceModelParams.UseOtherModel = m_EcospaceData.UseOtherModel
+            m_EcospaceModelParams.AgentNumbersFile = m_EcospaceData.AgentNumbersFile
             m_EcospaceModelParams.UseIBM = m_EcospaceData.UseIBM
             m_EcospaceModelParams.UseNewMultiStanza = m_EcospaceData.NewMultiStanza
             m_EcospaceModelParams.TotalTime = CInt(m_EcospaceData.TotalTime)
@@ -10852,6 +10853,7 @@ Public Class cCore
 
         m_EcospaceData.IFDPower = m_EcospaceModelParams.IFDPower
         m_EcospaceData.UseOtherModel = m_EcospaceModelParams.UseOtherModel
+        m_EcospaceData.AgentNumbersFile = m_EcospaceModelParams.AgentNumbersFile
         m_EcospaceData.UseIBM = m_EcospaceModelParams.UseIBM
         m_EcospaceData.NewMultiStanza = m_EcospaceModelParams.UseNewMultiStanza
         m_EcospaceData.TotalTime = m_EcospaceModelParams.TotalTime
