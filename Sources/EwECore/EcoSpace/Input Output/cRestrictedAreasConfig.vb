@@ -264,10 +264,28 @@ Public Class cRestrictedAreasConfig
     ''' range [firstYear, lastYear]. Missing years are created as all-open.
     ''' Legacy sentinel year 0, if present, is expanded to all years.
     ''' </summary>
+    ''' <param name="fleets">Optional fleet list (EwE names when the Seasonal restriction
+    ''' dropdown is filtered on checked FIBE fleets). When Nothing, the legacy
+    ''' <see cref="FIBEFleetTypes"/> are used for backward compatibility.</param>
     ''' -----------------------------------------------------------------------
-    Public Sub EnsureYearRange(firstYear As Integer, lastYear As Integer, nZones As Integer)
+    Public Sub EnsureYearRange(firstYear As Integer, lastYear As Integer, nZones As Integer,
+                              Optional fleets As IEnumerable(Of String) = Nothing)
         If (firstYear > lastYear) Then Return
-        For Each fleet As String In FIBEFleetTypes
+        Dim lstFleets As New List(Of String)()
+        If (fleets Is Nothing) Then
+            lstFleets.AddRange(FIBEFleetTypes)
+        Else
+            For Each f As String In fleets
+                If (Not String.IsNullOrWhiteSpace(f)) Then lstFleets.Add(f.Trim())
+            Next
+        End If
+        ' Deduplicate case-insensitively while preserving order
+        Dim seen As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+        Dim fleetsToEnsure As New List(Of String)()
+        For Each f As String In lstFleets
+            If (seen.Add(f)) Then fleetsToEnsure.Add(f)
+        Next
+        For Each fleet As String In fleetsToEnsure
             Dim fleetKey As String = fleet.ToLowerInvariant()
             Dim yearDict As Dictionary(Of Integer, Integer()()) = Nothing
             If (Not Me.Vector.TryGetValue(fleetKey, yearDict)) Then
@@ -439,9 +457,12 @@ Public Class cRestrictedAreasConfig
     ''' </summary>
     ''' <param name="filePath">Path to the CSV file (latin-1).</param>
     ''' <param name="errMsg">Error message on failure, including line numbers.</param>
+    ''' <param name="allowedFleets">Optional fleet whitelist (checked FIBE fleets from the
+    ''' Ecospace tab). When Nothing, the legacy <see cref="FIBEFleetTypes"/> are accepted.</param>
     ''' <returns>True on success.</returns>
     ''' -----------------------------------------------------------------------
-    Public Function ImportSparseCsv(filePath As String, ByRef errMsg As String) As Boolean
+    Public Function ImportSparseCsv(filePath As String, ByRef errMsg As String,
+                                    Optional allowedFleets As IEnumerable(Of String) = Nothing) As Boolean
         errMsg = ""
         If (Not File.Exists(filePath)) Then
             errMsg = String.Format("File not found: {0}", filePath)
@@ -546,18 +567,28 @@ Public Class cRestrictedAreasConfig
                 Return False
             End If
             Dim status As eRestrictedAreaStatus = StatusFromString(sStatus)
-            ' Validate fleet
-            Dim fleetNorm As String = sFleet.Trim().ToLowerInvariant()
+            ' Validate fleet: against the checked FIBE fleets when provided,
+            ' otherwise against the legacy FIBE fleet types.
+            Dim validFleets As New List(Of String)()
+            If (allowedFleets Is Nothing) Then
+                validFleets.AddRange(FIBEFleetTypes)
+            Else
+                For Each f As String In allowedFleets
+                    If (Not String.IsNullOrWhiteSpace(f)) Then validFleets.Add(f.Trim())
+                Next
+            End If
+            Dim fleetNorm As String = sFleet.Trim()
+            Dim fleetKey As String = sFleet.Trim().ToLowerInvariant()
             Dim isFleetValid As Boolean = False
-            For Each f As String In FIBEFleetTypes
-                If (fleetNorm = f.ToLowerInvariant()) Then
-                    fleetNorm = f ' canonical
+            For Each f As String In validFleets
+                If (fleetKey = f.Trim().ToLowerInvariant()) Then
+                    fleetNorm = f.Trim() ' preserve EwE display name, key stays case-insensitive
                     isFleetValid = True
                     Exit For
                 End If
             Next
             If (Not isFleetValid) Then
-                errMsg = String.Format("Unknown fleet '{0}' at line {1}. Expected one of: {2}.", sFleet, lineNo, String.Join(", ", FIBEFleetTypes))
+                errMsg = String.Format("Unknown fleet '{0}' at line {1}. Expected one of: {2}.", sFleet, lineNo, String.Join(", ", validFleets))
                 Return False
             End If
             ' Validate zone
@@ -606,7 +637,7 @@ Public Class cRestrictedAreasConfig
             If (r.EndYear > maxYear) Then maxYear = r.EndYear
         Next
         If (intervals.Count > 0) Then
-            Me.EnsureYearRange(minYear, maxYear, Me.Zones.Count)
+            Me.EnsureYearRange(minYear, maxYear, Me.Zones.Count, allowedFleets)
         End If
 
         ' Also ensure at least one year exists if no intervals? No need.
@@ -696,8 +727,11 @@ Public Class cRestrictedAreasConfig
     ''' <param name="filePath">Destination file (latin-1).</param>
     ''' <param name="firstYear">First simulation year (inclusive).</param>
     ''' <param name="lastYear">Last simulation year (inclusive).</param>
+    ''' <param name="fleets">Optional fleet list (checked FIBE fleets). When Nothing,
+    ''' the legacy <see cref="FIBEFleetTypes"/> are exported.</param>
     ''' -----------------------------------------------------------------------
-    Public Sub ExportSparseCsv(filePath As String, firstYear As Integer, lastYear As Integer)
+    Public Sub ExportSparseCsv(filePath As String, firstYear As Integer, lastYear As Integer,
+                               Optional fleets As IEnumerable(Of String) = Nothing)
         Dim latin1 As Encoding = Encoding.GetEncoding(28591)
         Dim sb As New StringBuilder()
         ' Header in French as agreed, with English aliases accepted on import
@@ -706,7 +740,15 @@ Public Class cRestrictedAreasConfig
             File.WriteAllText(filePath, sb.ToString(), latin1)
             Return
         End If
-        For Each fleet As String In FIBEFleetTypes
+        Dim lstFleets As New List(Of String)()
+        If (fleets Is Nothing) Then
+            lstFleets.AddRange(FIBEFleetTypes)
+        Else
+            For Each f As String In fleets
+                If (Not String.IsNullOrWhiteSpace(f)) Then lstFleets.Add(f.Trim())
+            Next
+        End If
+        For Each fleet As String In lstFleets
             Dim fleetKey As String = fleet.ToLowerInvariant()
             Dim yearDict As Dictionary(Of Integer, Integer()()) = Nothing
             If (Not Me.Vector.TryGetValue(fleetKey, yearDict)) Then Continue For

@@ -1252,6 +1252,117 @@ Namespace Ecospace
 
             ds.isFIBEFleet(iFleet) = (e.NewValue = CheckState.Checked)
 
+            ' The Seasonal restriction fleet dropdown only shows checked fleets:
+            ' refresh it once the check state has been committed.
+            Try
+                Me.BeginInvoke(New Action(AddressOf Me.RefreshVectorFleetFilter))
+            Catch
+                ' Designer / handle not created yet: refresh synchronously if possible
+                Me.RefreshVectorFleetFilter()
+            End Try
+
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Return the display names of the EwE fleets checked as FIBE-managed
+        ''' in the Ecospace tab. This is the source for the Seasonal restriction
+        ''' fleet dropdown.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Function GetCheckedFibeFleetNames() As List(Of String)
+            Dim lst As New List(Of String)()
+            Try
+                If (Me.Core Is Nothing) Then Return lst
+                Dim ds As cEcospaceDataStructures = Me.Core.EcospaceDataStructures
+                If (ds Is Nothing) Then Return lst
+                For iFleet As Integer = 1 To ds.nFleets
+                    Dim bChecked As Boolean = False
+                    Try
+                        bChecked = ds.isFIBEFleetManaged(iFleet)
+                    Catch
+                        Continue For
+                    End Try
+                    If (Not bChecked) Then Continue For
+                    Dim strName As String = ""
+                    Try
+                        strName = Me.Core.EcopathFleetInputs(iFleet).Name
+                    Catch
+                        strName = "Fleet " & iFleet.ToString()
+                    End Try
+                    If (Not String.IsNullOrWhiteSpace(strName)) Then lst.Add(strName.Trim())
+                Next
+            Catch
+            End Try
+            Return lst
+        End Function
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
+        ''' Repopulate the Seasonal restriction fleet dropdown with the fleets
+        ''' checked in the Ecospace tab. Preserves the selection when possible,
+        ''' clears the grid and disables the section when no fleet is checked.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub RefreshVectorFleetFilter()
+            If (Me.m_cbVectorFleet Is Nothing) Then Return
+            Dim strPrev As String = Nothing
+            Try
+                If (Me.m_cbVectorFleet.SelectedItem IsNot Nothing) Then _
+                    strPrev = Me.m_cbVectorFleet.SelectedItem.ToString()
+            Catch
+            End Try
+            Dim checkedFleets As List(Of String) = Me.GetCheckedFibeFleetNames()
+            Me.m_cbVectorFleet.BeginUpdate()
+            Try
+                Me.m_cbVectorFleet.Items.Clear()
+                For Each strFleet As String In checkedFleets
+                    Me.m_cbVectorFleet.Items.Add(strFleet)
+                Next
+                If (Me.m_cbVectorFleet.Items.Count > 0) Then
+                    Dim idx As Integer = -1
+                    If (Not String.IsNullOrEmpty(strPrev)) Then
+                        For i As Integer = 0 To Me.m_cbVectorFleet.Items.Count - 1
+                            If (String.Equals(Me.m_cbVectorFleet.Items(i).ToString(), strPrev, StringComparison.OrdinalIgnoreCase)) Then
+                                idx = i
+                                Exit For
+                            End If
+                        Next
+                    End If
+                    If (idx >= 0) Then
+                        If (Me.m_cbVectorFleet.SelectedIndex <> idx) Then
+                            Me.m_cbVectorFleet.SelectedIndex = idx
+                        Else
+                            Me.LoadVectorGrid()
+                        End If
+                    Else
+                        Me.m_cbVectorFleet.SelectedIndex = 0
+                    End If
+                Else
+                    Me.m_cbVectorFleet.SelectedIndex = -1
+                    If (Me.m_dgvVector IsNot Nothing) Then Me.m_dgvVector.Rows.Clear()
+                End If
+            Finally
+                Me.m_cbVectorFleet.EndUpdate()
+            End Try
+            Dim bHasFleet As Boolean = (Me.m_cbVectorFleet.Items.Count > 0)
+            Try
+                If (Me.m_dgvVector IsNot Nothing) Then Me.m_dgvVector.Enabled = bHasFleet
+                If (Me.m_cbVectorYear IsNot Nothing) Then Me.m_cbVectorYear.Enabled = bHasFleet
+                If (Me.m_btnImportVector IsNot Nothing) Then Me.m_btnImportVector.Enabled = bHasFleet
+            Catch
+            End Try
+            ' Ensure matrices exist for the checked fleets so an empty selection
+            ' still leaves usable data once a fleet is re-checked.
+            If (bHasFleet AndAlso Me.m_cfgRestrictedAreas IsNot Nothing) Then
+                Try
+                    Dim yrRange As Tuple(Of Integer, Integer) = Me.GetSimulationYearRange()
+                    Me.m_cfgRestrictedAreas.EnsureYearRange(yrRange.Item1, yrRange.Item2,
+                                                            Me.m_cfgRestrictedAreas.Zones.Count,
+                                                            checkedFleets)
+                Catch
+                End Try
+            End If
         End Sub
 
         ''' -------------------------------------------------------------------
@@ -1435,12 +1546,9 @@ Namespace Ecospace
             Me.m_cbVectorFleet.Dock = DockStyle.Fill
             Me.m_cbVectorFleet.DropDownStyle = ComboBoxStyle.DropDownList
             Me.m_cbVectorFleet.Name = "m_cbVectorFleet"
-            For Each strFleet As String In cRestrictedAreasConfig.FIBEFleetTypes
-                Me.m_cbVectorFleet.Items.Add(strFleet)
-            Next
-            If (Me.m_cbVectorFleet.Items.Count > 0) Then
-                Me.m_cbVectorFleet.SelectedIndex = 0
-            End If
+            ' Fleet list is populated dynamically from the fleets checked as FIBE-managed
+            ' in the Ecospace tab (see RefreshVectorFleetFilter).
+            Me.RefreshVectorFleetFilter()
             tlpVector.Controls.Add(Me.m_cbVectorFleet, 1, 0)
 
             ' Year filter
@@ -2250,8 +2358,13 @@ Namespace Ecospace
             Dim firstYear As Integer = yrRange.Item1
             Dim lastYear As Integer = yrRange.Item2
 
-            ' Ensure matrices exist for every fleet/year in the simulation
-            Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones)
+            ' Ensure matrices exist for the checked FIBE fleets / every year in the simulation
+            Dim checkedFleets As List(Of String) = Me.GetCheckedFibeFleetNames()
+            If (checkedFleets.Count > 0) Then
+                Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones, checkedFleets)
+            Else
+                Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones)
+            End If
 
             ' Resize any out-of-range years that may exist from imports
             For Each fleetDict As Dictionary(Of Integer, Integer()()) In Me.m_cfgRestrictedAreas.Vector.Values
@@ -2281,6 +2394,7 @@ Namespace Ecospace
                 Next
             Next
 
+            Me.RefreshVectorFleetFilter()
             Me.UpdateVectorYearFilter()
             Me.LoadVectorGrid()
 
@@ -2311,8 +2425,13 @@ Namespace Ecospace
             Dim firstYear As Integer = yrRange.Item1
             Dim lastYear As Integer = yrRange.Item2
 
-            ' Ensure data exists before reading
-            Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones)
+            ' Ensure data exists before reading (checked fleets only)
+            Dim checkedForLoad As List(Of String) = Me.GetCheckedFibeFleetNames()
+            If (checkedForLoad.Count > 0) Then
+                Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones, checkedForLoad)
+            Else
+                Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, nZones)
+            End If
 
             ' Determine year filter
             Dim filterYear As Integer = -1 ' -1 = All
@@ -2407,6 +2526,20 @@ Namespace Ecospace
 
         ''' -------------------------------------------------------------------
         ''' <summary>
+        ''' Refresh the Seasonal restriction fleet list when the user switches
+        ''' tabs, so (un)checking fleets in the Ecospace tab is always reflected.
+        ''' </summary>
+        ''' -------------------------------------------------------------------
+        Private Sub OnMainTabChanged(sender As Object, e As EventArgs) Handles m_tcMain.SelectedIndexChanged
+            Try
+                If (Me.m_tcMain Is Nothing OrElse Me.m_tpRestrictedZones Is Nothing) Then Return
+                If (Me.m_tcMain.SelectedTab Is Me.m_tpRestrictedZones) Then Me.RefreshVectorFleetFilter()
+            Catch
+            End Try
+        End Sub
+
+        ''' -------------------------------------------------------------------
+        ''' <summary>
         ''' Reload when the year filter changes.
         ''' </summary>
         ''' -------------------------------------------------------------------
@@ -2442,6 +2575,14 @@ Namespace Ecospace
                                 MessageBoxIcon.Warning)
                 Return
             End If
+            If (Me.GetCheckedFibeFleetNames().Count = 0) Then
+                MessageBox.Show(Me,
+                                "Please check at least one fleet as FIBE-managed in the Ecospace tab before importing a CSV.",
+                                "Import restricted areas",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning)
+                Return
+            End If
 
             Using dlg As New OpenFileDialog()
                 dlg.Title = "Import restricted areas (sparse intervals)"
@@ -2458,11 +2599,17 @@ Namespace Ecospace
                 Dim lastYear As Integer = yrRange.Item2
 
                 ' Replace existing vector: clear and re-ensure year range as all-open
+                ' (checked FIBE fleets only)
+                Dim checkedForImport As List(Of String) = Me.GetCheckedFibeFleetNames()
                 Me.m_cfgRestrictedAreas.Vector.Clear()
-                Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, Me.m_cfgRestrictedAreas.Zones.Count)
+                If (checkedForImport.Count > 0) Then
+                    Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, Me.m_cfgRestrictedAreas.Zones.Count, checkedForImport)
+                Else
+                    Me.m_cfgRestrictedAreas.EnsureYearRange(firstYear, lastYear, Me.m_cfgRestrictedAreas.Zones.Count)
+                End If
 
                 Dim err As String = ""
-                If (Me.m_cfgRestrictedAreas.ImportSparseCsv(dlg.FileName, err)) Then
+                If (Me.m_cfgRestrictedAreas.ImportSparseCsv(dlg.FileName, err, checkedForImport)) Then
                     Me.PersistRestrictedAreas()
                     Me.LoadVectorGrid()
                     MessageBox.Show(Me,
@@ -2905,8 +3052,15 @@ Namespace Ecospace
                 Dim lastYear As Integer = yrRange.Item2
 
                 ' Ensure matrices exist for the full simulation horizon before export
-                cfg.EnsureYearRange(firstYear, lastYear, cfg.Zones.Count)
-                cfg.ExportSparseCsv(vecPath, firstYear, lastYear)
+                ' (checked FIBE fleets only, Seasonal restriction section)
+                Dim checkedForExport As List(Of String) = Me.GetCheckedFibeFleetNames()
+                If (checkedForExport.Count > 0) Then
+                    cfg.EnsureYearRange(firstYear, lastYear, cfg.Zones.Count, checkedForExport)
+                    cfg.ExportSparseCsv(vecPath, firstYear, lastYear, checkedForExport)
+                Else
+                    cfg.EnsureYearRange(firstYear, lastYear, cfg.Zones.Count)
+                    cfg.ExportSparseCsv(vecPath, firstYear, lastYear)
+                End If
                 m_logger.LogInformation("FIBE coupling: restricted area vector exported to {Path}", vecPath)
 
                 ' --- 2. JSON fragment for CreateJSON.ps1 ---------------------

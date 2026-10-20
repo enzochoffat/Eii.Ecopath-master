@@ -1108,7 +1108,7 @@ Public Class frmEwE6
         Me.PopulateModelMRUDropdown()
         'Me.UpdateRegistrationControls()
 
-        Me.m_cmdHelpAbout.AddControl(Me.m_cmdEnterLicense)
+        'Me.m_cmdHelpAbout.AddControl(Me.m_cmdEnterLicense)
 
         AddHandler Me.Core.StateMonitor.CoreExecutionStateEvent, AddressOf Me.OnCoreExecutionStateChanged
 

@@ -196,21 +196,26 @@ Source: "{#DefRoot}{#DefSrc}\EwEShapeGridPlugin.dll"; DestDir: "{app}\Plugins"; 
 Source: "{#DefRoot}{#DefSrc}\EwEWindowsIntegrationPlugin.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\ui\winintegration
 
 ; Pro
-Source: "{#DefRoot}{#DefSrc}\EwEEcospaceSpinupPlugin.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spinup
-Source: "{#DefRoot}{#DefSrc}\EwESpatialAssetsPlugin.dll"; DestDir: "{app}\Plugins"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; NOTE-WSL-build 2026-10-06: les 2 plugins "pro" ci-dessous (Spinup, SpatialAssets) + DotSpatial
+; sont closed-source et absents de ce repo : ils sont normalement deposes a la main dans
+; Sources\ScientificInterface\bin\<arch>\Release\net48\ sur la machine de build officielle.
+; Lignes commentees pour que ISCC compile sans eux. TreeksLicensing (NuGet) est conserve.
+; Source: "{#DefRoot}{#DefSrc}\EwEEcospaceSpinupPlugin.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spinup
+; Source: "{#DefRoot}{#DefSrc}\EwESpatialAssetsPlugin.dll"; DestDir: "{app}\Plugins"; Flags: ignoreversion; Components: plugin\pro\spattemp
 ; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Analysis.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\input\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Controls.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Data.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Data.Forms.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Extensions.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Modeling.Forms.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- NOTE-WSL-build: DotSpatial.* absents du repo (voir note "Pro" ci-dessus)
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Controls.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Data.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Data.Forms.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Extensions.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Modeling.Forms.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
 ; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Positioning.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Projections.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Serialization.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Symbology.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Symbology.Forms.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Projections.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Serialization.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Symbology.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Symbology.Forms.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
 ; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Tools.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
-Source: "{#DefRoot}{#DefSrc}\DotSpatial.Topology.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
+; -- Source: "{#DefRoot}{#DefSrc}\DotSpatial.Topology.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
 Source: "{#DefRoot}{#DefSrc}\TreeksLicensingLibrary2.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\pro\spattemp
 Source: "{#DefRoot}{#DefSrc}\EwEMSPLinkPlugin.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\projects\msptools
 Source: "{#DefRoot}{#DefSrc}\EwEMSPPlugin.dll"; DestDir: "{app}\Plugins\"; Flags: ignoreversion; Components: plugin\projects\msptools
